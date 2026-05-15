@@ -1,0 +1,15 @@
+.dashboard-card {
+    -fx-padding: 20;
+    -fx-spacing: 8;
+    -fx-pref-width: 240;
+    -fx-pref-height: 110;
+    -fx-background-color: white;
+    -fx-border-color: #d1d5db;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+}
+
+.dashboard-number {
+    -fx-font-size: 30;
+    -fx-font-weight: bold;
+}

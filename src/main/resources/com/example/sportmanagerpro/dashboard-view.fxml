@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.util.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+
+<ScrollPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.example.sportmanagerpro.controllers.DashboardController"
+            fitToWidth="true">
+
+    <VBox spacing="20" style="-fx-padding: 25;">
+
+        <Label text="Panel general"
+               style="-fx-font-size: 28; -fx-font-weight: bold;" />
+
+        <Label text="Resumen general del estado deportivo del equipo"
+               style="-fx-font-size: 15;" />
+
+        <GridPane hgap="15" vgap="15">
+
+            <VBox styleClass="dashboard-card" GridPane.rowIndex="0" GridPane.columnIndex="0">
+                <Label text="Total deportistas" />
+                <Label fx:id="lblTotalDeportistas" styleClass="dashboard-number" />
+            </VBox>
+
+            <VBox styleClass="dashboard-card" GridPane.rowIndex="0" GridPane.columnIndex="1">
+                <Label text="Deportistas activas" />
+                <Label fx:id="lblDeportistasActivas" styleClass="dashboard-number" />
+            </VBox>
+
+            <VBox styleClass="dashboard-card" GridPane.rowIndex="0" GridPane.columnIndex="2">
+                <Label text="Categorías" />
+                <Label fx:id="lblCategorias" styleClass="dashboard-number" />
+            </VBox>
+
+            <VBox styleClass="dashboard-card" GridPane.rowIndex="1" GridPane.columnIndex="0">
+                <Label text="Entrenamientos" />
+                <Label fx:id="lblEntrenamientos" styleClass="dashboard-number" />
+            </VBox>
+
+            <VBox styleClass="dashboard-card" GridPane.rowIndex="1" GridPane.columnIndex="1">
+                <Label text="Partidos" />
+                <Label fx:id="lblPartidos" styleClass="dashboard-number" />
+            </VBox>
+
+            <VBox styleClass="dashboard-card" GridPane.rowIndex="1" GridPane.columnIndex="2">
+                <Label text="Asistencia general" />
+                <Label fx:id="lblAsistenciaGeneral" styleClass="dashboard-number" />
+            </VBox>
+
+            <VBox styleClass="dashboard-card" GridPane.rowIndex="2" GridPane.columnIndex="0">
+                <Label text="Victorias" />
+                <Label fx:id="lblVictorias" styleClass="dashboard-number" />
+            </VBox>
+
+            <VBox styleClass="dashboard-card" GridPane.rowIndex="2" GridPane.columnIndex="1">
+                <Label text="Empates" />
+                <Label fx:id="lblEmpates" styleClass="dashboard-number" />
+            </VBox>
+
+            <VBox styleClass="dashboard-card" GridPane.rowIndex="2" GridPane.columnIndex="2">
+                <Label text="Derrotas" />
+                <Label fx:id="lblDerrotas" styleClass="dashboard-number" />
+            </VBox>
+
+            <VBox styleClass="dashboard-card" GridPane.rowIndex="3" GridPane.columnIndex="0">
+                <Label text="Lesiones activas" />
+                <Label fx:id="lblLesionesActivas" styleClass="dashboard-number" />
+            </VBox>
+
+        </GridPane>
+
+        <Button text="Actualizar dashboard"
+                onAction="#cargarDashboard" />
+
+    </VBox>
+
+</ScrollPane>

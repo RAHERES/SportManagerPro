@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.util.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.example.sportmanagerpro.controllers.LesionController">
+
+    <top>
+        <Label text="Lesiones y Seguimiento Físico"
+               style="-fx-font-size: 24; -fx-font-weight: bold; -fx-padding: 20;" />
+    </top>
+
+    <center>
+        <VBox spacing="15" style="-fx-padding: 20;">
+
+            <GridPane hgap="10" vgap="10">
+
+                <Label text="Deportista:" GridPane.rowIndex="0" GridPane.columnIndex="0" />
+                <ComboBox fx:id="cmbDeportista" prefWidth="260"
+                          GridPane.rowIndex="0" GridPane.columnIndex="1" />
+
+                <Label text="Fecha:" GridPane.rowIndex="1" GridPane.columnIndex="0" />
+                <DatePicker fx:id="dpFecha" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+
+                <Label text="Zona afectada:" GridPane.rowIndex="2" GridPane.columnIndex="0" />
+                <ComboBox fx:id="cmbZonaAfectada" prefWidth="260"
+                          GridPane.rowIndex="2" GridPane.columnIndex="1" />
+
+                <Label text="Tipo de molestia:" GridPane.rowIndex="3" GridPane.columnIndex="0" />
+                <ComboBox fx:id="cmbTipoMolestia" prefWidth="260"
+                          GridPane.rowIndex="3" GridPane.columnIndex="1" />
+
+                <Label text="Contexto:" GridPane.rowIndex="0" GridPane.columnIndex="2" />
+                <ComboBox fx:id="cmbContexto" prefWidth="260"
+                          GridPane.rowIndex="0" GridPane.columnIndex="3" />
+
+                <Label text="Acción tomada:" GridPane.rowIndex="1" GridPane.columnIndex="2" />
+                <TextField fx:id="txtAccionTomada"
+                           GridPane.rowIndex="1" GridPane.columnIndex="3" />
+
+                <Label text="Regreso estimado:" GridPane.rowIndex="2" GridPane.columnIndex="2" />
+                <DatePicker fx:id="dpFechaRegreso"
+                            GridPane.rowIndex="2" GridPane.columnIndex="3" />
+
+                <Label text="Estado:" GridPane.rowIndex="3" GridPane.columnIndex="2" />
+                <ComboBox fx:id="cmbEstado" prefWidth="260"
+                          GridPane.rowIndex="3" GridPane.columnIndex="3" />
+
+                <Label text="Observaciones:" GridPane.rowIndex="4" GridPane.columnIndex="0" />
+                <TextArea fx:id="txtObservaciones" prefRowCount="3"
+                          GridPane.rowIndex="4" GridPane.columnIndex="1"
+                          GridPane.columnSpan="3" />
+            </GridPane>
+
+            <HBox spacing="10">
+                <Button text="Nuevo" onAction="#limpiarFormulario" />
+                <Button text="Guardar" onAction="#guardarLesion" />
+                <Button text="Actualizar" onAction="#actualizarLesion" />
+            </HBox>
+
+            <TableView fx:id="tablaLesiones" prefHeight="330">
+                <columns>
+                    <TableColumn fx:id="colId" text="ID" prefWidth="60" />
+                    <TableColumn fx:id="colFecha" text="Fecha" prefWidth="110" />
+                    <TableColumn fx:id="colDeportista" text="ID deportista" prefWidth="110" />
+                    <TableColumn fx:id="colZona" text="Zona" prefWidth="140" />
+                    <TableColumn fx:id="colTipo" text="Tipo" prefWidth="140" />
+                    <TableColumn fx:id="colContexto" text="Contexto" prefWidth="120" />
+                    <TableColumn fx:id="colEstado" text="Estado" prefWidth="140" />
+                    <TableColumn fx:id="colRegreso" text="Regreso estimado" prefWidth="140" />
+                </columns>
+            </TableView>
+
+        </VBox>
+    </center>
+
+</BorderPane>

@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.example.sportmanagerpro.planificacion.controller.DistribucionTiemposController">
+
+    <top>
+        <VBox spacing="10" style="-fx-padding: 12;">
+            <DatePicker fx:id="dpInicioMacrociclo"
+                        promptText="Inicio macrociclo"/>
+
+            <DatePicker fx:id="dpFinMacrociclo"
+                        promptText="Fin macrociclo"/>
+
+            <Button text="Generar semanas"
+                    onAction="#generarSemanasMacrociclo"/>
+
+            <Label text="Distribución de tiempos del macrociclo"
+                   style="-fx-font-size: 22px; -fx-font-weight: bold;"/>
+
+            <ComboBox fx:id="cmbBloqueAsignar"
+                      promptText="Bloque a asignar"
+                      prefWidth="180"/>
+
+            <TextField fx:id="txtSemanaInicioBloque"
+                       promptText="Semana inicio"/>
+
+            <TextField fx:id="txtSemanaFinBloque"
+                       promptText="Semana fin"/>
+
+            <Button text="Asignar bloque"
+                    onAction="#asignarBloqueARango"/>
+
+            <HBox spacing="8">
+                <ComboBox fx:id="cmbTipoPeriodizacion"
+                          promptText="Tipo de periodización"
+                          prefWidth="180"/>
+
+                <Button text="Agregar bloque"
+                        onAction="#agregarBloque"/>
+
+                <Button text="Generar matriz"
+                        onAction="#generarMatriz"/>
+
+                <Button text="Calcular"
+                        onAction="#calcularDistribucion"/>
+
+                <TextField fx:id="txtNombreBloque"/>
+                <TextField fx:id="txtPorcentajeFisico"/>
+                <TextField fx:id="txtPorcentajeTecnicoTactico"/>
+            </HBox>
+
+            <TableView fx:id="tablaBloques"
+                       editable="true"
+                       prefHeight="130">
+
+                <columns>
+                    <TableColumn fx:id="colTipoBloque"
+                                 text="Tipo de bloque"
+                                 prefWidth="220"/>
+
+                    <TableColumn fx:id="colDuracionBloque"
+                                 text="Duración semanas"
+                                 prefWidth="140"/>
+
+                    <TableColumn fx:id="colPorcentajeFisicoBloque"
+                                 text="Prep. Física"
+                                 prefWidth="130"/>
+
+                    <TableColumn fx:id="colPorcentajeTecTacBloque"
+                                 text=" Prep. Tec-Tac"
+                                 prefWidth="140"/>
+                </columns>
+
+            </TableView>
+
+        </VBox>
+    </top>
+
+    <center>
+        <ScrollPane fitToHeight="true"
+                    fitToWidth="true">
+            <content>
+                <GridPane fx:id="gridPlanificacion"
+                          hgap="0"
+                          vgap="0"
+                          style="-fx-padding: 15;"/>
+            </content>
+        </ScrollPane>
+    </center>
+
+    <bottom>
+        <HBox spacing="8"
+              style="-fx-padding: 12;">
+
+            <Button text="Agregar microciclo"
+                    onAction="#agregarMicrociclo"/>
+
+            <Button text="Eliminar último microciclo"
+                    onAction="#eliminarUltimoMicrociclo"/>
+        </HBox>
+    </bottom>
+
+</BorderPane>

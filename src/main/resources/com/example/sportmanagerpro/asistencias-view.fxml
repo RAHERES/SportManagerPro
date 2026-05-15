@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.util.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.example.sportmanagerpro.controllers.AsistenciaController">
+
+    <top>
+        <VBox spacing="10" style="-fx-padding: 20;">
+
+            <Label text="Control de Asistencia"
+                   style="-fx-font-size: 24; -fx-font-weight: bold;" />
+
+            <HBox spacing="10">
+
+                <Label text="Entrenamiento:" />
+
+                <ComboBox fx:id="cmbEntrenamiento"
+                          prefWidth="400"
+                          onAction="#cargarDeportistasDelEntrenamiento" />
+
+                <Button text="Guardar asistencia"
+                        onAction="#guardarAsistencia" />
+
+            </HBox>
+
+        </VBox>
+    </top>
+
+    <center>
+
+        <TableView fx:id="tablaAsistencia">
+
+            <columns>
+
+                <TableColumn fx:id="colNombre"
+                             text="Deportista"
+                             prefWidth="350" />
+
+                <TableColumn fx:id="colEstado"
+                             text="Estado"
+                             prefWidth="180" />
+
+            </columns>
+
+        </TableView>
+
+    </center>
+
+</BorderPane>

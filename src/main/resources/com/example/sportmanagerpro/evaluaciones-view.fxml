@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.util.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.example.sportmanagerpro.controllers.EvaluacionFisicaController">
+
+    <top>
+        <Label text="Evaluaciones Físicas"
+               style="-fx-font-size: 24; -fx-font-weight: bold; -fx-padding: 20;" />
+    </top>
+
+    <center>
+        <VBox spacing="15" style="-fx-padding: 20;">
+
+            <GridPane hgap="10" vgap="10">
+
+                <Label text="Deportista:" GridPane.rowIndex="0" GridPane.columnIndex="0" />
+                <ComboBox fx:id="cmbDeportista" prefWidth="260"
+                          GridPane.rowIndex="0" GridPane.columnIndex="1" />
+
+                <Label text="Fecha:" GridPane.rowIndex="1" GridPane.columnIndex="0" />
+                <DatePicker fx:id="dpFecha" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+
+                <Label text="Prueba:" GridPane.rowIndex="2" GridPane.columnIndex="0" />
+                <ComboBox fx:id="cmbPrueba" prefWidth="260"
+                          GridPane.rowIndex="2" GridPane.columnIndex="1"
+                          onAction="#actualizarUnidadSugerida" />
+
+                <Label text="Resultado:" GridPane.rowIndex="3" GridPane.columnIndex="0" />
+                <TextField fx:id="txtResultado" GridPane.rowIndex="3" GridPane.columnIndex="1" />
+
+                <Label text="Unidad:" GridPane.rowIndex="4" GridPane.columnIndex="0" />
+                <TextField fx:id="txtUnidad" GridPane.rowIndex="4" GridPane.columnIndex="1" />
+
+                <Label text="Evaluador:" GridPane.rowIndex="5" GridPane.columnIndex="0" />
+                <TextField fx:id="txtEvaluador" GridPane.rowIndex="5" GridPane.columnIndex="1" />
+
+                <Label text="Observaciones:" GridPane.rowIndex="6" GridPane.columnIndex="0" />
+                <TextArea fx:id="txtObservaciones" prefRowCount="3"
+                          GridPane.rowIndex="6" GridPane.columnIndex="1" />
+            </GridPane>
+
+            <HBox spacing="10">
+                <Button text="Nuevo" onAction="#limpiarFormulario" />
+                <Button text="Guardar" onAction="#guardarEvaluacion" />
+                <Button text="Actualizar" onAction="#actualizarEvaluacion" />
+            </HBox>
+
+            <TableView fx:id="tablaEvaluaciones" prefHeight="350">
+                <columns>
+                    <TableColumn fx:id="colId" text="ID" prefWidth="60" />
+                    <TableColumn fx:id="colFecha" text="Fecha" prefWidth="110" />
+                    <TableColumn fx:id="colDeportista" text="ID deportista" prefWidth="110" />
+                    <TableColumn fx:id="colPrueba" text="Prueba" prefWidth="180" />
+                    <TableColumn fx:id="colResultado" text="Resultado" prefWidth="100" />
+                    <TableColumn fx:id="colUnidad" text="Unidad" prefWidth="100" />
+                    <TableColumn fx:id="colEvaluador" text="Evaluador" prefWidth="150" />
+                </columns>
+            </TableView>
+
+        </VBox>
+    </center>
+</BorderPane>

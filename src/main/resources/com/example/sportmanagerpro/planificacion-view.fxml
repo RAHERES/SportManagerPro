@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.util.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.example.sportmanagerpro.planificacion.controller.PlanificacionController">
+
+    <top>
+        <Label text="Planificación y Periodización"
+               style="-fx-font-size: 22px; -fx-font-weight: bold; -fx-padding: 15;"/>
+    </top>
+
+    <center>
+        <VBox spacing="10" style="-fx-padding: 15;">
+
+            <ComboBox fx:id="cmbModeloPlanificacion"
+                      promptText="Selecciona modelo de planificación"/>
+
+            <DatePicker fx:id="dpFechaInicio"/>
+            <DatePicker fx:id="dpFechaCompetencia"/>
+
+            <TextField fx:id="txtMinutosMicrociclo"
+                       promptText="Minutos por microciclo"/>
+
+            <TextField fx:id="txtCantidadMicrociclos"
+                       promptText="Cantidad de microciclos"/>
+
+            <Button text="Generar planificación"
+                    onAction="#generarPlanificacion"/>
+
+            <TextArea fx:id="txtResultado"
+                      prefHeight="300"/>
+
+        </VBox>
+    </center>
+
+</BorderPane>

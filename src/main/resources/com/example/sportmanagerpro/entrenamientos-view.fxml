@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.util.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.example.sportmanagerpro.controllers.EntrenamientoController">
+
+    <top>
+        <Label text="Gestión de Entrenamientos"
+               style="-fx-font-size: 24; -fx-font-weight: bold; -fx-padding: 20;" />
+    </top>
+
+    <center>
+        <VBox spacing="15" style="-fx-padding: 20;">
+
+            <GridPane hgap="10" vgap="10">
+
+                <Label text="Fecha:" GridPane.rowIndex="0" GridPane.columnIndex="0" />
+                <DatePicker fx:id="dpFecha" GridPane.rowIndex="0" GridPane.columnIndex="1" />
+
+                <Label text="Hora inicio:" GridPane.rowIndex="1" GridPane.columnIndex="0" />
+                <TextField fx:id="txtHoraInicio" promptText="16:30" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+
+                <Label text="Hora término:" GridPane.rowIndex="2" GridPane.columnIndex="0" />
+                <TextField fx:id="txtHoraFin" promptText="18:00" GridPane.rowIndex="2" GridPane.columnIndex="1" />
+
+                <Label text="Categoría:" GridPane.rowIndex="3" GridPane.columnIndex="0" />
+                <ComboBox fx:id="cmbCategoria" GridPane.rowIndex="3" GridPane.columnIndex="1" />
+
+                <Label text="Tipo:" GridPane.rowIndex="0" GridPane.columnIndex="2" />
+                <ComboBox fx:id="cmbTipo" GridPane.rowIndex="0" GridPane.columnIndex="3" />
+
+                <Label text="Intensidad:" GridPane.rowIndex="1" GridPane.columnIndex="2" />
+                <ComboBox fx:id="cmbIntensidad" GridPane.rowIndex="1" GridPane.columnIndex="3" />
+
+                <Label text="Duración minutos:" GridPane.rowIndex="2" GridPane.columnIndex="2" />
+                <TextField fx:id="txtDuracion" GridPane.rowIndex="2" GridPane.columnIndex="3" />
+
+                <Label text="Objetivo:" GridPane.rowIndex="4" GridPane.columnIndex="0" />
+                <TextArea fx:id="txtObjetivo" prefRowCount="2"
+                          GridPane.rowIndex="4" GridPane.columnIndex="1"
+                          GridPane.columnSpan="3" />
+
+                <Label text="Contenido trabajado:" GridPane.rowIndex="5" GridPane.columnIndex="0" />
+                <TextArea fx:id="txtContenido" prefRowCount="3"
+                          GridPane.rowIndex="5" GridPane.columnIndex="1"
+                          GridPane.columnSpan="3" />
+
+                <Label text="Material utilizado:" GridPane.rowIndex="6" GridPane.columnIndex="0" />
+                <TextArea fx:id="txtMaterial" prefRowCount="2"
+                          GridPane.rowIndex="6" GridPane.columnIndex="1"
+                          GridPane.columnSpan="3" />
+
+                <Label text="Observaciones:" GridPane.rowIndex="7" GridPane.columnIndex="0" />
+                <TextArea fx:id="txtObservaciones" prefRowCount="2"
+                          GridPane.rowIndex="7" GridPane.columnIndex="1"
+                          GridPane.columnSpan="3" />
+            </GridPane>
+
+            <HBox spacing="10">
+                <Button text="Nuevo" onAction="#limpiarFormulario" />
+                <Button text="Guardar" onAction="#guardarEntrenamiento" />
+                <Button text="Actualizar" onAction="#actualizarEntrenamiento" />
+            </HBox>
+
+            <TableView fx:id="tablaEntrenamientos" prefHeight="320">
+                <columns>
+                    <TableColumn fx:id="colId" text="ID" prefWidth="60" />
+                    <TableColumn fx:id="colFecha" text="Fecha" prefWidth="110" />
+                    <TableColumn fx:id="colCategoria" text="Categoría ID" prefWidth="100" />
+                    <TableColumn fx:id="colTipo" text="Tipo" prefWidth="140" />
+                    <TableColumn fx:id="colIntensidad" text="Intensidad" prefWidth="100" />
+                    <TableColumn fx:id="colDuracion" text="Duración" prefWidth="100" />
+                    <TableColumn fx:id="colObjetivo" text="Objetivo" prefWidth="300" />
+                </columns>
+            </TableView>
+
+        </VBox>
+    </center>
+</BorderPane>

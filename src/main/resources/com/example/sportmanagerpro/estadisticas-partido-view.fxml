@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.util.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.example.sportmanagerpro.controllers.EstadisticaPartidoController">
+
+    <top>
+        <VBox spacing="10" style="-fx-padding: 20;">
+            <Label text="Estadísticas por Partido"
+                   style="-fx-font-size: 24; -fx-font-weight: bold;" />
+
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Label text="Partido:" />
+
+                <ComboBox fx:id="cmbPartido"
+                          prefWidth="420"
+                          onAction="#cargarDeportistasDelPartido" />
+
+                <Button text="Guardar estadísticas"
+                        onAction="#guardarEstadisticas" />
+            </HBox>
+        </VBox>
+    </top>
+
+    <center>
+        <TableView fx:id="tablaEstadisticas" editable="true">
+            <columns>
+                <TableColumn fx:id="colNombre" text="Deportista" prefWidth="250" />
+                <TableColumn fx:id="colTitular" text="Titular" prefWidth="80" />
+                <TableColumn fx:id="colMinutos" text="Minutos" prefWidth="90" />
+                <TableColumn fx:id="colGoles" text="Goles" prefWidth="80" />
+                <TableColumn fx:id="colAsistencias" text="Asistencias" prefWidth="110" />
+                <TableColumn fx:id="colAmarillas" text="Amarillas" prefWidth="100" />
+                <TableColumn fx:id="colRojas" text="Rojas" prefWidth="80" />
+                <TableColumn fx:id="colObservaciones" text="Observaciones" prefWidth="250" />
+            </columns>
+        </TableView>
+    </center>
+
+</BorderPane>
