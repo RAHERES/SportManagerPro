@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.util.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.example.sportmanagerpro.planificacion.controller.PlanificacionController2">
+
+    <top>
+        <VBox spacing="8" style="-fx-padding: 15;">
+            <Label text="Módulo de Planificación y Periodización"
+                   style="-fx-font-size: 20px; -fx-font-weight: bold;"/>
+
+            <GridPane hgap="10" vgap="10">
+                <Label text="Inicio:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                <DatePicker fx:id="dpInicio" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+
+                <Label text="Fin:" GridPane.rowIndex="0" GridPane.columnIndex="2"/>
+                <DatePicker fx:id="dpFin" GridPane.rowIndex="0" GridPane.columnIndex="3"/>
+
+                <Button text="Generar microciclos"
+                        onAction="#generarPlan"
+                        GridPane.rowIndex="0" GridPane.columnIndex="4"/>
+            </GridPane>
+        </VBox>
+    </top>
+
+    <center>
+        <TableView fx:id="tablaMicrociclos">
+            <columns>
+                <TableColumn fx:id="colNumero" text="Semana" prefWidth="80"/>
+                <TableColumn fx:id="colFechas" text="Fechas" prefWidth="180"/>
+                <TableColumn fx:id="colTipo" text="Microciclo" prefWidth="150"/>
+                <TableColumn fx:id="colSesiones" text="Sesiones" prefWidth="100"/>
+                <TableColumn fx:id="colMinPlan" text="Min. planificados" prefWidth="150"/>
+                <TableColumn fx:id="colMinReal" text="Min. realizados" prefWidth="150"/>
+                <TableColumn fx:id="colCumplimiento" text="Cumplimiento" prefWidth="130"/>
+            </columns>
+        </TableView>
+    </center>
+
+    <bottom>
+        <HBox spacing="10" style="-fx-padding: 15;">
+            <Button text="Registrar sesión de ejemplo"
+                    onAction="#registrarSesionEjemplo"/>
+            <Button text="Actualizar análisis"
+                    onAction="#actualizarAnalisis"/>
+        </HBox>
+    </bottom>
+
+</BorderPane>

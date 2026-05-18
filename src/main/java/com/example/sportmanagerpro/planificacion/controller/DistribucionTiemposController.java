@@ -364,7 +364,7 @@ public class DistribucionTiemposController {
             case PRECOMPETITIVO -> "PC";
             case COMPETENCIA -> "COMP.";
             case AJUSTE -> "A";
-            case ACTIVACION -> "ACT.";
+          //  case ACTIVACION -> "ACT.";
         };
     }
 
@@ -526,7 +526,7 @@ public class DistribucionTiemposController {
                 case PRECOMPETITIVO -> 40;
                 case COMPETENCIA -> 25;
                 case AJUSTE -> 60;
-                case ACTIVACION -> 35;
+             //   case ACTIVACION -> 35;
             };
         }
     }

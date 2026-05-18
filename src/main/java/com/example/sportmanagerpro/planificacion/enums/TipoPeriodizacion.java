@@ -10,5 +10,7 @@ public enum TipoPeriodizacion {
     BLOQUES,
     PENDULAR,
     INTEGRADA,
+    //CARGAS_SELECTIVAS,
+    //PERIODIZACION_TACTICA,
     PERSONALIZADA
 }

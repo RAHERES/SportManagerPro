@@ -5,6 +5,8 @@ package com.example.sportmanagerpro.controllers;
  */
 
 import com.example.sportmanagerpro.MainApp;
+import com.example.sportmanagerpro.planificacion.model.PlanGraficoView;
+import com.example.sportmanagerpro.planificacion.view.PlanGraficoPane;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
@@ -90,8 +92,8 @@ public class MainController {
     private void abrirModuloPlanificacion() {
         try {
             FXMLLoader loader = new FXMLLoader(
-                    //MainApp.class.getResource("planificacion-view.fxml")
-                    MainApp.class.getResource("distribucion-tiempos-view.fxml")
+                    MainApp.class.getResource("planificacion2-view.fxml")
+                    //MainApp.class.getResource("distribucion-tiempos-view.fxml")
             );
 
             Parent root = loader.load();
@@ -109,6 +111,15 @@ public class MainController {
     @FXML
     private void mostrarReporteCategoria() {
         cargarVista("reporte-categoria-view.fxml");
+    }
+
+    @FXML
+    private void abrirPlanGrafico() {
+        PlanGraficoPane planGraficoPane = new PlanGraficoPane();
+      //  contentPane.getChildren().add(new PlanGraficoView());
+
+        PlanGraficoView planGraficoView = new PlanGraficoView();
+            planGraficoView.start(new Stage());
     }
 
     private void cargarVista(String rutaVista) {

@@ -17,6 +17,6 @@ public enum TipoMicrociclo {
 
     AJUSTE,
 
-    ACTIVACION
+ //   ACTIVACION
 
 }

@@ -18,7 +18,7 @@ public class MainApp extends Application {
         DatabaseInitializer.initializeDatabase();
 
         FXMLLoader loader = new FXMLLoader(
-                MainApp.class.getResource("distribucion-tiempos-view" +
+                MainApp.class.getResource("hello-view" +
                         ".fxml")
         );
 

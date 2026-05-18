@@ -53,7 +53,7 @@
                     onAction="#mostrarReporteCategoria" />
 
             <Button text="Planificación"
-                    onAction="#abrirModuloPlanificacion"/>
+                    onAction="#abrirPlanGrafico"/>
         </VBox>
 
 
