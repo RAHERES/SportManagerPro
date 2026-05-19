@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.util.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.example.sportmanagerpro.controllers.HistorialDeportistaController">
+
+    <top>
+        <VBox spacing="10" style="-fx-padding: 20;">
+            <Label text="Historial Individual de Deportista"
+                   style="-fx-font-size: 24; -fx-font-weight: bold;" />
+
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Label text="Deportista:" />
+
+                <ComboBox fx:id="cmbDeportista"
+                          prefWidth="350"
+                          onAction="#cargarHistorial" />
+                <Button text="Exportar PDF"
+                        onAction="#exportarPdf" />
+            </HBox>
+        </VBox>
+    </top>
+
+    <center>
+        <VBox spacing="20" style="-fx-padding: 20;">
+
+            <GridPane hgap="15" vgap="12">
+                <Label text="Nombre:" GridPane.rowIndex="0" GridPane.columnIndex="0" />
+                <Label fx:id="lblNombre" GridPane.rowIndex="0" GridPane.columnIndex="1" />
+
+                <Label text="Edad:" GridPane.rowIndex="1" GridPane.columnIndex="0" />
+                <Label fx:id="lblEdad" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+
+                <Label text="Posición:" GridPane.rowIndex="2" GridPane.columnIndex="0" />
+                <Label fx:id="lblPosicion" GridPane.rowIndex="2" GridPane.columnIndex="1" />
+
+                <Label text="Pierna dominante:" GridPane.rowIndex="3" GridPane.columnIndex="0" />
+                <Label fx:id="lblPierna" GridPane.rowIndex="3" GridPane.columnIndex="1" />
+            </GridPane>
+
+            <Separator />
+
+            <GridPane hgap="20" vgap="15">
+
+                <Label text="Entrenamientos registrados:" GridPane.rowIndex="0" GridPane.columnIndex="0" />
+                <Label fx:id="lblTotalEntrenamientos" GridPane.rowIndex="0" GridPane.columnIndex="1" />
+
+                <Label text="Asistencias:" GridPane.rowIndex="1" GridPane.columnIndex="0" />
+                <Label fx:id="lblAsistencias" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+
+                <Label text="Faltas:" GridPane.rowIndex="2" GridPane.columnIndex="0" />
+                <Label fx:id="lblFaltas" GridPane.rowIndex="2" GridPane.columnIndex="1" />
+
+                <Label text="Retardos:" GridPane.rowIndex="3" GridPane.columnIndex="0" />
+                <Label fx:id="lblRetardos" GridPane.rowIndex="3" GridPane.columnIndex="1" />
+
+                <Label text="Partidos jugados:" GridPane.rowIndex="0" GridPane.columnIndex="2" />
+                <Label fx:id="lblPartidos" GridPane.rowIndex="0" GridPane.columnIndex="3" />
+
+                <Label text="Minutos jugados:" GridPane.rowIndex="1" GridPane.columnIndex="2" />
+                <Label fx:id="lblMinutos" GridPane.rowIndex="1" GridPane.columnIndex="3" />
+
+                <Label text="Goles:" GridPane.rowIndex="2" GridPane.columnIndex="2" />
+                <Label fx:id="lblGoles" GridPane.rowIndex="2" GridPane.columnIndex="3" />
+
+                <Label text="Asistencias en partido:" GridPane.rowIndex="3" GridPane.columnIndex="2" />
+                <Label fx:id="lblAsistenciasPartido" GridPane.rowIndex="3" GridPane.columnIndex="3" />
+            </GridPane>
+
+        </VBox>
+    </center>
+
+</BorderPane>

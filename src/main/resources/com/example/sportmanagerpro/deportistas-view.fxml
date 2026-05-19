@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.util.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.example.sportmanagerpro.controllers.DeportistaController">
+
+    <top>
+        <Label text="Gestión de Deportistas"
+               style="-fx-font-size: 24; -fx-font-weight: bold; -fx-padding: 20;" />
+    </top>
+
+    <center>
+        <VBox spacing="15" style="-fx-padding: 20;">
+
+            <GridPane hgap="10" vgap="10">
+
+                <Label text="Nombre completo:" GridPane.rowIndex="0" GridPane.columnIndex="0" />
+                <TextField fx:id="txtNombreCompleto" GridPane.rowIndex="0" GridPane.columnIndex="1" />
+
+                <Label text="Fecha nacimiento:" GridPane.rowIndex="1" GridPane.columnIndex="0" />
+                <DatePicker fx:id="dpFechaNacimiento" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+
+                <Label text="Sexo:" GridPane.rowIndex="2" GridPane.columnIndex="0" />
+                <ComboBox fx:id="cmbSexo" GridPane.rowIndex="2" GridPane.columnIndex="1" />
+
+                <Label text="Grado o grupo:" GridPane.rowIndex="3" GridPane.columnIndex="0" />
+                <TextField fx:id="txtGradoGrupo" GridPane.rowIndex="3" GridPane.columnIndex="1" />
+
+                <Label text="Categoría:" GridPane.rowIndex="4" GridPane.columnIndex="0" />
+                <ComboBox fx:id="cmbCategoria" GridPane.rowIndex="4" GridPane.columnIndex="1" />
+
+                <Label text="Posición principal:" GridPane.rowIndex="0" GridPane.columnIndex="2" />
+                <TextField fx:id="txtPosicionPrincipal" GridPane.rowIndex="0" GridPane.columnIndex="3" />
+
+                <Label text="Posición secundaria:" GridPane.rowIndex="1" GridPane.columnIndex="2" />
+                <TextField fx:id="txtPosicionSecundaria" GridPane.rowIndex="1" GridPane.columnIndex="3" />
+
+                <Label text="Pierna dominante:" GridPane.rowIndex="2" GridPane.columnIndex="2" />
+                <ComboBox fx:id="cmbPiernaDominante" GridPane.rowIndex="2" GridPane.columnIndex="3" />
+
+                <Label text="Teléfono tutor:" GridPane.rowIndex="3" GridPane.columnIndex="2" />
+                <TextField fx:id="txtTelefonoTutor" GridPane.rowIndex="3" GridPane.columnIndex="3" />
+
+                <CheckBox fx:id="chkActivo" text="Activa" selected="true"
+                          GridPane.rowIndex="4" GridPane.columnIndex="3" />
+
+                <Label text="Observaciones:" GridPane.rowIndex="5" GridPane.columnIndex="0" />
+                <TextArea fx:id="txtObservaciones" prefRowCount="3"
+                          GridPane.rowIndex="5" GridPane.columnIndex="1"
+                          GridPane.columnSpan="3" />
+            </GridPane>
+
+            <HBox spacing="10">
+                <Button text="Nuevo" onAction="#limpiarFormulario" />
+                <Button text="Guardar" onAction="#guardarDeportista" />
+                <Button text="Actualizar" onAction="#actualizarDeportista" />
+                <Button text="Desactivar" onAction="#desactivarDeportista" />
+            </HBox>
+
+            <TableView fx:id="tablaDeportistas" prefHeight="350">
+                <columns>
+                    <TableColumn fx:id="colId" text="ID" prefWidth="60" />
+                    <TableColumn fx:id="colNombre" text="Nombre" prefWidth="220" />
+                    <TableColumn fx:id="colEdad" text="Edad" prefWidth="80" />
+                    <TableColumn fx:id="colSexo" text="Sexo" prefWidth="80" />
+                    <TableColumn fx:id="colCategoria" text="Categoría ID" prefWidth="100" />
+                    <TableColumn fx:id="colPosicion" text="Posición" prefWidth="130" />
+                    <TableColumn fx:id="colPierna" text="Pierna" prefWidth="100" />
+                    <TableColumn fx:id="colActivo" text="Activa" prefWidth="80" />
+                </columns>
+            </TableView>
+
+        </VBox>
+    </center>
+</BorderPane>
