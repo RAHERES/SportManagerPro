@@ -9,6 +9,10 @@ import java.time.LocalDate;
  */
 public class MicrocicloGraficoPlanificado {
 
+    private int minutosPlanificados;
+    private int pesoCiclaje;
+    private Integer mesocicloPadreSemanaInicio;
+
     private TipoMicrociclo tipoMicrociclo;
     private String nombre;
     private int semanaInicio;
@@ -33,6 +37,30 @@ public class MicrocicloGraficoPlanificado {
         this.fechaInicio = fechaInicio;
         this.fechaFin = fechaFin;
         this.colorHex = colorHex;
+    }
+
+    public int getMinutosPlanificados() {
+        return minutosPlanificados;
+    }
+
+    public void setMinutosPlanificados(int minutosPlanificados) {
+        this.minutosPlanificados = minutosPlanificados;
+    }
+
+    public int getPesoCiclaje() {
+        return pesoCiclaje;
+    }
+
+    public void setPesoCiclaje(int pesoCiclaje) {
+        this.pesoCiclaje = pesoCiclaje;
+    }
+
+    public Integer getMesocicloPadreSemanaInicio() {
+        return mesocicloPadreSemanaInicio;
+    }
+
+    public void setMesocicloPadreSemanaInicio(Integer mesocicloPadreSemanaInicio) {
+        this.mesocicloPadreSemanaInicio = mesocicloPadreSemanaInicio;
     }
 
     public TipoMicrociclo getTipoMicrociclo() {

@@ -1,6 +1,7 @@
 package com.example.sportmanagerpro.planificacion.model;
 
 import com.example.sportmanagerpro.planificacion.enums.*;
+import com.example.sportmanagerpro.planificacion.service.CiclajeService;
 import com.example.sportmanagerpro.planificacion.service.EtapasPorPeriodizacionService;
 import com.example.sportmanagerpro.planificacion.service.PeriodizacionService;
 import javafx.application.Application;
@@ -16,6 +17,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.control.cell.ComboBoxTableCell;
 import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -31,6 +33,13 @@ import java.time.format.TextStyle;
 import java.util.*;
 
 public class PlanGraficoView extends Application {
+
+    private final CiclajeService ciclajeService = new CiclajeService();
+
+    private CiclajeMesociclo ciclajeActual =
+            new CiclajeMesociclo("Ascendente 3:1", List.of(4, 6, 7, 3));
+
+
     private final List<SesionMicrocicloPlanificada> sesionesMicrociclo = new ArrayList<>();
     private boolean sesionesInicializadas = false;
 
@@ -222,6 +231,9 @@ public class PlanGraficoView extends Application {
                 dato("Objetivo:", "Estatal CONADEMS")
         );
 
+        Button btnCiclaje = botonNormal("Ciclaje");
+        btnCiclaje.setOnAction(e -> abrirEditorCiclaje());
+
         HBox controles = new HBox(12);
         controles.setAlignment(Pos.CENTER_LEFT);
 
@@ -281,6 +293,7 @@ public class PlanGraficoView extends Application {
                 new Label("Inicio:"), dpFechaInicio,
                 new Label("Fin:"), dpFechaFin,
                 cbTipoPeriodizacion,
+                btnCiclaje,
                 generar,
                 btnEditarPeriodos,
                 btnEditarMesociclos,
@@ -319,6 +332,218 @@ public class PlanGraficoView extends Application {
         }
 
         microciclosInicializados = true;
+    }
+
+    private void abrirEditorCiclaje() {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Ciclaje del mesociclo");
+        dialog.setHeaderText("Define la estructura del mesociclo. Ejemplo: 4,6,7,3");
+
+        GridPane form = new GridPane();
+        form.setHgap(10);
+        form.setVgap(10);
+        form.setPadding(new Insets(15));
+
+        TextField txtNombre = new TextField(ciclajeActual.getNombre());
+
+        TextField txtValores = new TextField(
+                ciclajeActual.getValoresMicrociclo()
+                        .stream()
+                        .map(String::valueOf)
+                        .reduce((a, b) -> a + "," + b)
+                        .orElse("4,6,7,3")
+        );
+
+        Spinner<Integer> spVolumenMesociclo = new Spinner<>(1, 10000, 277);
+        spVolumenMesociclo.setEditable(true);
+
+        form.add(new Label("Nombre:"), 0, 0);
+        form.add(txtNombre, 1, 0);
+
+        form.add(new Label("Ciclaje:"), 0, 1);
+        form.add(txtValores, 1, 1);
+
+        form.add(new Label("Volumen mesociclo:"), 0, 2);
+        form.add(spVolumenMesociclo, 1, 2);
+
+        Label resultado = new Label();
+        resultado.setStyle("-fx-font-weight: bold;");
+
+        Button btnCalcular = botonNormal("Calcular");
+        btnCalcular.setOnAction(e -> {
+            List<Integer> valores = leerCiclaje(txtValores.getText());
+
+            CiclajeMesociclo ciclaje = new CiclajeMesociclo(txtNombre.getText(), valores);
+
+            List<Integer> distribucion = ciclajeService.distribuirVolumenMesociclo(
+                    spVolumenMesociclo.getValue(),
+                    ciclaje
+            );
+
+            resultado.setText("Distribución semanal: " + distribucion);
+        });
+
+        form.add(btnCalcular, 1, 3);
+        form.add(resultado, 1, 4);
+
+        dialog.getDialogPane().setContent(form);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        dialog.showAndWait().ifPresent(respuesta -> {
+            if (respuesta == ButtonType.OK) {
+                ciclajeActual = new CiclajeMesociclo(
+                        txtNombre.getText(),
+                        leerCiclaje(txtValores.getText())
+                );
+
+                aplicarCiclajeAMicrociclos(spVolumenMesociclo.getValue());
+                construirPlanGrafico();
+            }
+        });
+    }
+
+    private List<Integer> leerCiclaje(String texto) {
+        List<Integer> valores = new ArrayList<>();
+
+        String[] partes = texto.split(",");
+
+        for (String parte : partes) {
+            try {
+                valores.add(Integer.parseInt(parte.trim()));
+            } catch (NumberFormatException e) {
+                mostrarAlerta("Ciclaje inválido", "Usa valores separados por coma. Ejemplo: 4,6,7,3");
+                return List.of(4, 6, 7, 3);
+            }
+        }
+
+        return valores;
+    }
+
+    private void aplicarCiclajeAMicrociclos(int volumenMesociclo) {
+        List<Integer> distribucion = ciclajeService.distribuirVolumenMesociclo(
+                volumenMesociclo,
+                ciclajeActual
+        );
+
+        for (int i = 0; i < distribucion.size() && i < semanasPlan.size(); i++) {
+            int semana = i + 1;
+            int minutos = distribucion.get(i);
+
+            CeldaPlanGrafico celda = celdasPlan.computeIfAbsent(
+                    "MINUTOS PLAN." + "-" + semana,
+                    key -> new CeldaPlanGrafico(
+                            "MINUTOS PLAN.",
+                            semana,
+                            String.valueOf(minutos),
+                            "#ffffff",
+                            true
+                    )
+            );
+
+            celda.setValor(String.valueOf(minutos));
+        }
+    }
+
+    private List<Integer> leerPatronCiclaje(String patron) {
+        List<Integer> valores = new ArrayList<>();
+
+        if (patron == null || patron.isBlank()) {
+            return List.of(1);
+        }
+
+        String[] partes = patron.split(",");
+
+        for (String parte : partes) {
+            try {
+                int valor = Integer.parseInt(parte.trim());
+
+                if (valor <= 0) {
+                    mostrarAlerta("Ciclaje inválido", "Los valores del ciclaje deben ser mayores a cero.");
+                    return List.of(1);
+                }
+
+                valores.add(valor);
+            } catch (NumberFormatException e) {
+                mostrarAlerta("Ciclaje inválido", "Usa valores separados por coma. Ejemplo: 4,6,7,3");
+                return List.of(1);
+            }
+        }
+
+        return valores;
+    }
+
+    private List<Integer> distribuirVolumenPorCiclaje(int volumenTotal, List<Integer> patron, int duracionSemanas) {
+        List<Integer> pesos = new ArrayList<>();
+
+        for (int i = 0; i < duracionSemanas; i++) {
+            pesos.add(patron.get(i % patron.size()));
+        }
+
+        int sumaPesos = pesos.stream().mapToInt(Integer::intValue).sum();
+
+        List<Integer> resultado = new ArrayList<>();
+        int acumulado = 0;
+
+        for (int i = 0; i < pesos.size(); i++) {
+            int minutos;
+
+            if (i == pesos.size() - 1) {
+                minutos = volumenTotal - acumulado;
+            } else {
+                minutos = (int) Math.round(volumenTotal * pesos.get(i) / (double) sumaPesos);
+                acumulado += minutos;
+            }
+
+            resultado.add(minutos);
+        }
+
+        return resultado;
+    }
+
+    private void aplicarCiclajeDeMesociclo(MesocicloPlanificado mesociclo) {
+        inicializarMicrociclosSiEsNecesario();
+
+        List<MicrocicloGraficoPlanificado> hijos = microciclosPlanificados.stream()
+                .filter(m -> m.getSemanaInicio() >= mesociclo.getSemanaInicio()
+                        && m.getSemanaInicio() <= mesociclo.getSemanaFin())
+                .sorted(Comparator.comparingInt(MicrocicloGraficoPlanificado::getSemanaInicio))
+                .toList();
+
+        if (hijos.isEmpty()) {
+            return;
+        }
+
+        List<Integer> patron = leerPatronCiclaje(mesociclo.getPatronCiclaje());
+
+        List<Integer> minutosPorMicrociclo = distribuirVolumenPorCiclaje(
+                mesociclo.getVolumenTotalMinutos(),
+                patron,
+                hijos.size()
+        );
+
+        for (int i = 0; i < hijos.size(); i++) {
+            MicrocicloGraficoPlanificado micro = hijos.get(i);
+
+            int peso = patron.get(i % patron.size());
+            int minutos = minutosPorMicrociclo.get(i);
+
+            micro.setPesoCiclaje(peso);
+            micro.setMinutosPlanificados(minutos);
+            micro.setMesocicloPadreSemanaInicio(mesociclo.getSemanaInicio());
+
+            CeldaPlanGrafico celdaMinutos = celdasPlan.computeIfAbsent(
+                    "MINUTOS PLAN." + "-" + micro.getSemanaInicio(),
+                    key -> new CeldaPlanGrafico(
+                            "MINUTOS PLAN.",
+                            micro.getSemanaInicio(),
+                            String.valueOf(minutos),
+                            "#ffffff",
+                            true
+                    )
+            );
+
+            celdaMinutos.setValor(String.valueOf(minutos));
+        }
     }
 
     private TipoMicrociclo sugerirTipoMicrocicloPorSemana(int semana) {
@@ -655,7 +880,19 @@ public class PlanGraficoView extends Application {
         colDuracion.setCellFactory(TextFieldTableCell.forTableColumn(new IntegerStringConverter()));
         colDuracion.setOnEditCommit(e -> e.getRowValue().setDuracionSemanas(e.getNewValue()));
 
-        tabla.getColumns().addAll(colNombre, colTipo, colInicio, colDuracion);
+        TableColumn<MesocicloPlanificado, Integer> colVolumen = new TableColumn<>("Volumen total");
+        colVolumen.setCellValueFactory(data ->
+                new javafx.beans.property.SimpleObjectProperty<>(data.getValue().getVolumenTotalMinutos()));
+        colVolumen.setCellFactory(TextFieldTableCell.forTableColumn(new IntegerStringConverter()));
+        colVolumen.setOnEditCommit(e -> e.getRowValue().setVolumenTotalMinutos(e.getNewValue()));
+
+        TableColumn<MesocicloPlanificado, String> colCiclaje = new TableColumn<>("Ciclaje");
+        colCiclaje.setCellValueFactory(data ->
+                new javafx.beans.property.SimpleStringProperty(data.getValue().getPatronCiclaje()));
+        colCiclaje.setCellFactory(TextFieldTableCell.forTableColumn());
+        colCiclaje.setOnEditCommit(e -> e.getRowValue().setPatronCiclaje(e.getNewValue()));
+
+        tabla.getColumns().addAll(colNombre, colTipo, colInicio, colDuracion, colVolumen, colCiclaje);
         tabla.getItems().setAll(mesociclosPlanificados);
 
         Button btnAgregar = botonNormal("Agregar mesociclo");
@@ -705,6 +942,12 @@ public class PlanGraficoView extends Application {
                 }
 
                 actualizarFechasMesociclos();
+
+                for (MesocicloPlanificado mesociclo : mesociclosPlanificados) {
+                    aplicarCiclajeDeMesociclo(mesociclo);
+                }
+
+                limpiarSeleccionCelda();
                 construirPlanGrafico();
             }
         });
@@ -1435,6 +1678,7 @@ public class PlanGraficoView extends Application {
         );*/
 
         filaMicrociclosCalculados(row++);
+        filaPesoCiclaje(row++);
 
         filaGraficoCarga(row++);
 
@@ -1458,6 +1702,34 @@ public class PlanGraficoView extends Application {
         filaNumerica(row++, "PREP. TÉCNICO-TÁCTICA", generarValores(totalSemanas, 30, 45, 55, 60, 70, 75, 85));
         filaBarras(row++, "PREP. PSICOLÓGICA", "#8e44ad", new int[]{10, 20, 30, 35, 50, 55, 60, 45, 55, 60, 50, 25, 15});
         filaBarras(row++, "PREP. TEÓRICA", "#d49a00", new int[]{15, 25, 40, 45, 55, 65, 70, 55, 70, 75, 45, 25, 10});
+    }
+
+    private void filaPesoCiclaje(int row) {
+        grid.add(celdaTitulo("CICLAJE"), 0, row);
+
+        inicializarMicrociclosSiEsNecesario();
+
+        for (int semana = 1; semana <= semanasPlan.size(); semana++) {
+            int finalSemana = semana;
+            int peso = microciclosPlanificados.stream()
+                    .filter(m -> m.getSemanaInicio() == finalSemana)
+                    .findFirst()
+                    .map(MicrocicloGraficoPlanificado::getPesoCiclaje)
+                    .orElse(0);
+
+            grid.add(
+                    celdaEditable(
+                            "CICLAJE",
+                            semana,
+                            peso == 0 ? "" : String.valueOf(peso),
+                            "#ffffff",
+                            82,
+                            34
+                    ),
+                    semana,
+                    row
+            );
+        }
     }
 
     private void filaSesionesCalculadas(int row) {
@@ -1484,10 +1756,12 @@ public class PlanGraficoView extends Application {
 
     private void filaMinutosPlanificadosCalculados(int row) {
         grid.add(celdaTitulo("MINUTOS PLAN."), 0, row);
+
         inicializarSesionesSiEsNecesario();
+        inicializarMicrociclosSiEsNecesario();
 
         for (int semana = 1; semana <= semanasPlan.size(); semana++) {
-            int minutos = calcularMinutosSemana(semana);
+            int minutos = obtenerMinutosPlanificadosSemana(semana);
 
             grid.add(
                     celdaEditable(
@@ -1502,6 +1776,20 @@ public class PlanGraficoView extends Application {
                     row
             );
         }
+    }
+
+    private int obtenerMinutosPlanificadosSemana(int semana) {
+        return microciclosPlanificados.stream()
+                .filter(m -> m.getSemanaInicio() == semana)
+                .findFirst()
+                .map(m -> {
+                    if (m.getMinutosPlanificados() > 0) {
+                        return m.getMinutosPlanificados();
+                    }
+
+                    return calcularMinutosSemana(semana);
+                })
+                .orElseGet(() -> calcularMinutosSemana(semana));
     }
 
     private void abrirEditorMicrociclos() {
@@ -1782,7 +2070,11 @@ public class PlanGraficoView extends Application {
                     celdaEditable(
                             "MESOCICLO",
                             mesociclo.getSemanaInicio(),
-                            mesociclo.getNombre() + "\n" + mesociclo.getDuracionSemanas() + " sem.",
+                            mesociclo.getNombre()
+                                    + "\n"
+                                    + mesociclo.getDuracionSemanas()
+                                    + " sem. | "
+                                    + mesociclo.getPatronCiclaje(),
                             mesociclo.getColorHex(),
                             mesociclo.getDuracionSemanas() * 82,
                             38
@@ -2238,6 +2530,8 @@ public class PlanGraficoView extends Application {
 
                 if ("MICROCICLO".equals(celda.getFila())) {
                     abrirEditorMicrocicloDesdeCelda(celda);
+                } else if ("MESOCICLO".equals(celda.getFila())) {
+                    abrirEditorMesocicloDesdeCelda(celda);
                 } else if ("SESIONES".equals(celda.getFila()) || "MINUTOS PLAN.".equals(celda.getFila())) {
                     abrirEditorSesionesSemana(celda.getSemana());
                 } else {
@@ -2250,6 +2544,314 @@ public class PlanGraficoView extends Application {
         label.setOnMouseExited(e -> aplicarEstiloEditable(label, dato, false));
 
         return label;
+    }
+
+    private void abrirEditorMesocicloDesdeCelda(CeldaPlanGrafico celda) {
+        inicializarMesociclosSiEsNecesario();
+        inicializarMicrociclosSiEsNecesario();
+
+        MesocicloPlanificado mesociclo = mesociclosPlanificados.stream()
+                .filter(m -> celda.getSemana() >= m.getSemanaInicio()
+                        && celda.getSemana() <= m.getSemanaFin())
+                .findFirst()
+                .orElse(null);
+
+        if (mesociclo == null) {
+            mostrarAlerta("Mesociclo no encontrado", "No se encontró el mesociclo de esta semana.");
+            return;
+        }
+
+        int hijos = contarMicrociclosHijos(mesociclo);
+
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Editar mesociclo");
+        dialog.setHeaderText(
+                mesociclo.getNombre()
+                        + " | Semanas "
+                        + mesociclo.getSemanaInicio()
+                        + " - "
+                        + mesociclo.getSemanaFin()
+                        + " | Microciclos hijos: "
+                        + hijos
+        );
+
+        GridPane form = new GridPane();
+        form.setHgap(10);
+        form.setVgap(10);
+        form.setPadding(new Insets(15));
+
+        TextField txtNombre = new TextField(mesociclo.getNombre());
+
+        ComboBox<TipoMesociclo> cbTipo = new ComboBox<>();
+        cbTipo.getItems().setAll(TipoMesociclo.values());
+        cbTipo.setValue(mesociclo.getTipoMesociclo());
+
+        Spinner<Integer> spSemanaInicio = new Spinner<>(1, semanasPlan.size(), mesociclo.getSemanaInicio());
+        Spinner<Integer> spDuracion = new Spinner<>(1, semanasPlan.size(), mesociclo.getDuracionSemanas());
+        Spinner<Integer> spVolumen = new Spinner<>(1, 100000, mesociclo.getVolumenTotalMinutos());
+
+        spSemanaInicio.setEditable(true);
+        spDuracion.setEditable(true);
+        spVolumen.setEditable(true);
+
+        TextField txtCiclaje = new TextField(mesociclo.getPatronCiclaje());
+        txtCiclaje.setPromptText("Ejemplo: 4,6,7,3");
+
+        HBox selectorVisualCiclaje = crearSelectorVisualCiclaje(txtCiclaje, hijos);
+
+        ColorPicker cpColor = new ColorPicker(Color.web(mesociclo.getColorHex()));
+
+        Label lblInfoCiclaje = new Label();
+        lblInfoCiclaje.setStyle("-fx-font-weight: bold; -fx-text-fill: #123456;");
+
+        Runnable actualizarInfo = () -> {
+            int hijosActuales = contarMicrociclosHijosTemporal(
+                    spSemanaInicio.getValue(),
+                    spSemanaInicio.getValue() + spDuracion.getValue() - 1
+            );
+
+            List<Integer> patron = leerPatronCiclaje(txtCiclaje.getText());
+
+            lblInfoCiclaje.setText(
+                    "Microciclos hijos: " + hijosActuales
+                            + " | Valores de ciclaje: " + patron.size()
+                            + " | Volumen total: " + spVolumen.getValue()
+            );
+        };
+
+        txtCiclaje.textProperty().addListener((obs, oldVal, newVal) -> actualizarInfo.run());
+        spSemanaInicio.valueProperty().addListener((obs, oldVal, newVal) -> actualizarInfo.run());
+        spDuracion.valueProperty().addListener((obs, oldVal, newVal) -> actualizarInfo.run());
+        spVolumen.valueProperty().addListener((obs, oldVal, newVal) -> actualizarInfo.run());
+
+        cbTipo.setOnAction(e -> {
+            TipoMesociclo tipo = cbTipo.getValue();
+
+            if (tipo != null) {
+                txtNombre.setText(nombreMesociclo(tipo));
+                cpColor.setValue(Color.web(colorMesociclo(tipo)));
+            }
+        });
+
+        Button btnSugerirCiclaje = botonNormal("Sugerir ciclaje");
+        btnSugerirCiclaje.setOnAction(e -> {
+            int hijosActuales = contarMicrociclosHijosTemporal(
+                    spSemanaInicio.getValue(),
+                    spSemanaInicio.getValue() + spDuracion.getValue() - 1
+            );
+
+            txtCiclaje.setText(sugerirPatronCiclaje(hijosActuales));
+            dialog.getDialogPane().setContent(form);
+            actualizarInfo.run();
+        });
+
+        Button btnAplicarCiclaje = botonAzul("Aplicar ciclaje a microciclos");
+        btnAplicarCiclaje.setMaxWidth(Double.MAX_VALUE);
+        btnAplicarCiclaje.setOnAction(e -> {
+            mesociclo.setPatronCiclaje(txtCiclaje.getText());
+            mesociclo.setVolumenTotalMinutos(spVolumen.getValue());
+
+            boolean aplicado = Boolean.parseBoolean(null);
+
+            if (aplicado) {
+                limpiarSeleccionCelda();
+                construirPlanGrafico();
+            }
+        });
+
+        form.add(new Label("Nombre:"), 0, 0);
+        form.add(txtNombre, 1, 0);
+
+        form.add(new Label("Tipo:"), 0, 1);
+        form.add(cbTipo, 1, 1);
+
+        form.add(new Label("Semana inicio:"), 0, 2);
+        form.add(spSemanaInicio, 1, 2);
+
+        form.add(new Label("Duración semanas:"), 0, 3);
+        form.add(spDuracion, 1, 3);
+
+        form.add(new Label("Volumen total:"), 0, 4);
+        form.add(spVolumen, 1, 4);
+
+        form.add(new Label("Ciclaje:"), 0, 5);
+        form.add(txtCiclaje, 1, 5);
+
+        form.add(selectorVisualCiclaje, 1, 6);
+
+        form.add(btnSugerirCiclaje, 1, 7);
+        form.add(lblInfoCiclaje, 1, 8);
+        form.add(new Label("Color:"), 0, 9);
+        form.add(cpColor, 1, 9);
+        form.add(btnAplicarCiclaje, 1, 10);
+
+        actualizarInfo.run();
+
+        dialog.getDialogPane().setContent(form);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        dialog.showAndWait().ifPresent(respuesta -> {
+            if (respuesta == ButtonType.OK) {
+
+                int semanaAnterior = mesociclo.getSemanaInicio();
+
+                mesociclo.setNombre(txtNombre.getText());
+                mesociclo.setTipoMesociclo(cbTipo.getValue());
+                mesociclo.setSemanaInicio(spSemanaInicio.getValue());
+                mesociclo.setDuracionSemanas(spDuracion.getValue());
+                mesociclo.setVolumenTotalMinutos(spVolumen.getValue());
+                mesociclo.setPatronCiclaje(txtCiclaje.getText());
+                mesociclo.setColorHex(toHex(cpColor.getValue()));
+
+                if (!validarMesociclos()) {
+                    return;
+                }
+
+                boolean aplicado = Boolean.parseBoolean(null);
+
+                if (!aplicado) {
+                    return;
+                }
+
+                actualizarFechasMesociclos();
+
+                eliminarCeldaPlan("MESOCICLO", semanaAnterior);
+                eliminarCeldaPlan("MESOCICLO", mesociclo.getSemanaInicio());
+
+                limpiarSeleccionCelda();
+                construirPlanGrafico();
+            }
+        });
+    }
+
+    private HBox crearSelectorVisualCiclaje(TextField txtCiclaje, int numeroMicrociclos) {
+        HBox contenedor = new HBox(8);
+        contenedor.setAlignment(Pos.BOTTOM_CENTER);
+        contenedor.setPadding(new Insets(10));
+        contenedor.setStyle("""
+            -fx-background-color: #f8fafc;
+            -fx-border-color: #cbd5e1;
+            -fx-border-radius: 6;
+            -fx-background-radius: 6;
+            """);
+
+        List<Integer> valores = leerPatronCiclaje(txtCiclaje.getText());
+
+        while (valores.size() < numeroMicrociclos) {
+            valores.add(1);
+        }
+
+        if (valores.size() > numeroMicrociclos) {
+            valores = new ArrayList<>(valores.subList(0, numeroMicrociclos));
+        }
+
+        List<Spinner<Integer>> spinners = new ArrayList<>();
+
+        for (int i = 0; i < numeroMicrociclos; i++) {
+            int indice = i;
+
+            VBox columna = new VBox(4);
+            columna.setAlignment(Pos.BOTTOM_CENTER);
+
+            Region barra = new Region();
+            barra.setPrefWidth(42);
+            barra.setMinWidth(42);
+
+            Spinner<Integer> spinner = new Spinner<>(1, 20, valores.get(i));
+            spinner.setEditable(true);
+            spinner.setPrefWidth(58);
+
+            Label lblSemana = new Label("M" + (i + 1));
+            lblSemana.setStyle("-fx-font-size: 11px; -fx-font-weight: bold;");
+
+            Label lblValor = new Label(String.valueOf(valores.get(i)));
+            lblValor.setStyle("-fx-font-size: 12px; -fx-font-weight: bold;");
+
+            Runnable actualizarBarra = () -> {
+                int valor = spinner.getValue();
+                barra.setPrefHeight(valor * 12);
+                barra.setStyle("""
+                    -fx-background-color: linear-gradient(to top, #6b7280, #d1d5db);
+                    -fx-border-color: #111827;
+                    -fx-border-width: 1;
+                    """);
+                lblValor.setText(String.valueOf(valor));
+
+                String nuevoPatron = spinners.stream()
+                        .map(s -> String.valueOf(s.getValue()))
+                        .reduce((a, b) -> a + "," + b)
+                        .orElse("1");
+
+                txtCiclaje.setText(nuevoPatron);
+            };
+
+            spinner.valueProperty().addListener((obs, oldVal, newVal) -> actualizarBarra.run());
+
+            barra.setOnMouseClicked(e -> {
+                if (e.getButton() == MouseButton.PRIMARY) {
+                    spinner.getValueFactory().increment(1);
+                } else if (e.getButton() == MouseButton.SECONDARY) {
+                    spinner.getValueFactory().decrement(1);
+                }
+            });
+
+            spinners.add(spinner);
+            columna.getChildren().addAll(lblValor, barra, spinner, lblSemana);
+            contenedor.getChildren().add(columna);
+
+            actualizarBarra.run();
+        }
+
+        return contenedor;
+    }
+
+    private int contarMicrociclosHijos(MesocicloPlanificado mesociclo) {
+        return (int) microciclosPlanificados.stream()
+                .filter(m -> m.getSemanaInicio() >= mesociclo.getSemanaInicio()
+                        && m.getSemanaFin() <= mesociclo.getSemanaFin())
+                .count();
+    }
+
+    private int contarMicrociclosHijosTemporal(int semanaInicio, int semanaFin) {
+        return (int) microciclosPlanificados.stream()
+                .filter(m -> m.getSemanaInicio() >= semanaInicio
+                        && m.getSemanaFin() <= semanaFin)
+                .count();
+    }
+
+    private String sugerirPatronCiclaje(int cantidadMicrociclos) {
+        return switch (cantidadMicrociclos) {
+            case 1 -> "1";
+            case 2 -> "2,1";
+            case 3 -> "3,4,2";
+            case 4 -> "4,6,7,3";
+            case 5 -> "4,5,6,7,3";
+            case 6 -> "4,5,6,7,5,3";
+            default -> generarPatronAscendenteDescendente(cantidadMicrociclos);
+        };
+    }
+
+    private String generarPatronAscendenteDescendente(int cantidad) {
+        if (cantidad <= 0) {
+            return "1";
+        }
+
+        List<Integer> valores = new ArrayList<>();
+
+        int pico = Math.max(2, cantidad);
+
+        for (int i = 1; i <= cantidad; i++) {
+            if (i <= cantidad * 0.70) {
+                valores.add(3 + i);
+            } else {
+                valores.add(Math.max(2, pico - i + 2));
+            }
+        }
+
+        return valores.stream()
+                .map(String::valueOf)
+                .reduce((a, b) -> a + "," + b)
+                .orElse("1");
     }
 
     /*private void abrirEditorSesionesSemana(int semana) {

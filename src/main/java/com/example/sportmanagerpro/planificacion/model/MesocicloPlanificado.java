@@ -9,6 +9,9 @@ import java.time.LocalDate;
  */
 public class MesocicloPlanificado {
 
+    private int volumenTotalMinutos;
+    private String patronCiclaje;
+
     private TipoMesociclo tipoMesociclo;
     private String nombre;
     private int semanaInicio;
@@ -33,6 +36,25 @@ public class MesocicloPlanificado {
         this.fechaInicio = fechaInicio;
         this.fechaFin = fechaFin;
         this.colorHex = colorHex;
+
+        this.volumenTotalMinutos = 360;
+        this.patronCiclaje = "4,6,7,3";
+    }
+
+    public int getVolumenTotalMinutos() {
+        return volumenTotalMinutos;
+    }
+
+    public void setVolumenTotalMinutos(int volumenTotalMinutos) {
+        this.volumenTotalMinutos = volumenTotalMinutos;
+    }
+
+    public String getPatronCiclaje() {
+        return patronCiclaje;
+    }
+
+    public void setPatronCiclaje(String patronCiclaje) {
+        this.patronCiclaje = patronCiclaje;
     }
 
     public TipoMesociclo getTipoMesociclo() {
