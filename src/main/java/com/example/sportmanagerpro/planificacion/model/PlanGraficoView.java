@@ -1,11 +1,14 @@
 package com.example.sportmanagerpro.planificacion.model;
 
+import com.example.sportmanagerpro.planificacion.configuracion.*;
 import com.example.sportmanagerpro.planificacion.enums.*;
 import com.example.sportmanagerpro.planificacion.service.EtapasPorPeriodizacionService;
 import com.example.sportmanagerpro.planificacion.service.PeriodizacionService;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -16,6 +19,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.control.cell.ComboBoxTableCell;
 import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.scene.input.ScrollEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -31,6 +35,17 @@ import java.time.format.TextStyle;
 import java.util.*;
 
 public class PlanGraficoView extends Application {
+
+    private ScrollPane scrollPlanGrafico;
+    private HBox miniMapaSemanas;
+    private Label lblRangoVisible;
+
+    private int semanasPorVista = 12;
+    private int semanaInicioVista = 1;
+    private double zoomPlanGrafico = 1.0;
+
+    private ConfiguracionPlanificacion configuracionPlanificacion;
+
     private final List<SesionMicrocicloPlanificada> sesionesMicrociclo = new ArrayList<>();
     private boolean sesionesInicializadas = false;
 
@@ -88,6 +103,12 @@ public class PlanGraficoView extends Application {
 
     @Override
     public void start(Stage stage) {
+        configuracionPlanificacion = ConfiguracionPlanificacionStore.getConfiguracionActiva();
+
+        fechaInicioPlan = configuracionPlanificacion.getFechaInicio();
+        fechaFinPlan = configuracionPlanificacion.getFechaFin();
+        deporteActual = configuracionPlanificacion.getDeporte();
+
         BorderPane root = new BorderPane();
         root.setStyle("-fx-background-color: #f4f7fb;");
 
@@ -1350,7 +1371,347 @@ public class PlanGraficoView extends Application {
         return b;
     }
 
-    private ScrollPane crearCentro() {
+    private Node crearCentro() {
+        VBox contenedor = new VBox(8);
+        contenedor.setStyle("-fx-background-color: #f4f7fb;");
+        contenedor.setPadding(new Insets(8, 8, 0, 8));
+
+        Node centroOriginal = crearCentroPlanGraficoOriginal();
+
+        scrollPlanGrafico = buscarScrollPane(centroOriginal);
+
+        if (scrollPlanGrafico != null) {
+            scrollPlanGrafico.addEventFilter(ScrollEvent.SCROLL, event -> {
+                if (event.isControlDown()) {
+                    if (event.getDeltaY() > 0) {
+                        aplicarZoom(Math.min(1.2, zoomPlanGrafico + 0.05));
+                    } else {
+                        aplicarZoom(Math.max(0.45, zoomPlanGrafico - 0.05));
+                    }
+                    event.consume();
+                }
+            });
+        }
+
+        contenedor.getChildren().addAll(
+                crearPanelNavegacionAnual(),
+                centroOriginal
+        );
+
+        VBox.setVgrow(centroOriginal, Priority.ALWAYS);
+
+        return contenedor;
+    }
+
+    private VBox crearPanelNavegacionAnual() {
+        VBox panel = new VBox(6);
+        panel.setPadding(new Insets(10));
+        panel.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-border-color: #d9e2ec; -fx-border-radius: 12;");
+
+        Label titulo = new Label("VISTA PANORÁMICA DEL CICLO");
+        titulo.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #08294a;");
+
+        lblRangoVisible = new Label();
+        lblRangoVisible.setStyle("-fx-font-size: 12px; -fx-text-fill: #5c6b7a;");
+
+        miniMapaSemanas = new HBox(2);
+        miniMapaSemanas.setAlignment(Pos.CENTER_LEFT);
+
+        ScrollPane scrollMiniMapa = new ScrollPane(miniMapaSemanas);
+        scrollMiniMapa.setFitToHeight(true);
+        scrollMiniMapa.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollMiniMapa.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollMiniMapa.setPrefHeight(52);
+        scrollMiniMapa.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+
+        Button btnAnterior = new Button("← Bloque anterior");
+        Button btnSiguiente = new Button("Bloque siguiente →");
+        Button btnHoy = new Button("Hoy");
+        Button btnZoomMenos = new Button("−");
+        Button btnZoomMas = new Button("+");
+
+        ToggleButton btn4 = new ToggleButton("4 semanas");
+        ToggleButton btn8 = new ToggleButton("8 semanas");
+        ToggleButton btn12 = new ToggleButton("12 semanas");
+        ToggleButton btnTodo = new ToggleButton("Todo");
+
+        ToggleGroup grupoVista = new ToggleGroup();
+        btn4.setToggleGroup(grupoVista);
+        btn8.setToggleGroup(grupoVista);
+        btn12.setToggleGroup(grupoVista);
+        btnTodo.setToggleGroup(grupoVista);
+        btn12.setSelected(true);
+
+        btnAnterior.setOnAction(e -> moverBloqueSemanas(-semanasPorVista));
+        btnSiguiente.setOnAction(e -> moverBloqueSemanas(semanasPorVista));
+        btnHoy.setOnAction(e -> irASemanaActual());
+
+        btnZoomMenos.setOnAction(e -> aplicarZoom(Math.max(0.45, zoomPlanGrafico - 0.05)));
+        btnZoomMas.setOnAction(e -> aplicarZoom(Math.min(1.2, zoomPlanGrafico + 0.05)));
+
+        btn4.setOnAction(e -> cambiarVistaSemanas(4));
+        btn8.setOnAction(e -> cambiarVistaSemanas(8));
+        btn12.setOnAction(e -> cambiarVistaSemanas(12));
+        btnTodo.setOnAction(e -> mostrarTodoElPlan());
+
+        HBox controles = new HBox(8);
+        controles.setAlignment(Pos.CENTER_LEFT);
+        controles.getChildren().addAll(
+                btnAnterior,
+                btnSiguiente,
+                btnHoy,
+                new Separator(),
+                btn4,
+                btn8,
+                btn12,
+                btnTodo,
+                new Separator(),
+                new Label("Zoom"),
+                btnZoomMenos,
+                btnZoomMas
+        );
+
+        panel.getChildren().addAll(titulo, lblRangoVisible, scrollMiniMapa, controles);
+
+        actualizarMiniMapaSemanas();
+        actualizarTextoRangoVisible();
+
+        return panel;
+    }
+
+    private void actualizarMiniMapaSemanas() {
+        if (miniMapaSemanas == null) {
+            return;
+        }
+
+        miniMapaSemanas.getChildren().clear();
+
+        for (SemanaPlanificacion semana : semanasPlan) {
+            int numeroSemana = semana.getNumeroSemana();
+
+            Label celda = new Label(String.valueOf(numeroSemana));
+            celda.setAlignment(Pos.CENTER);
+            celda.setMinWidth(34);
+            celda.setPrefWidth(34);
+            celda.setMinHeight(28);
+            celda.setPrefHeight(28);
+
+            boolean estaVisible = numeroSemana >= semanaInicioVista
+                    && numeroSemana < semanaInicioVista + semanasPorVista;
+
+            String color = obtenerColorMiniMapaSemana(semana, estaVisible);
+
+            celda.setStyle(
+                    "-fx-background-color: " + color + ";"
+                            + "-fx-border-color: #cbd5e1;"
+                            + "-fx-border-radius: 4;"
+                            + "-fx-background-radius: 4;"
+                            + "-fx-font-size: 10px;"
+                            + "-fx-font-weight: bold;"
+                            + "-fx-text-fill: #08294a;"
+                            + "-fx-cursor: hand;"
+            );
+
+            Tooltip tooltip = new Tooltip(
+                    "Semana " + semana.getNumeroSemana()
+                            + "\n" + semana.getFechaInicio()
+                            + " a " + semana.getFechaFin()
+            );
+
+            Tooltip.install(celda, tooltip);
+
+            celda.setOnMouseClicked(e -> irASemana(numeroSemana));
+
+            miniMapaSemanas.getChildren().add(celda);
+        }
+    }
+
+    private String obtenerColorMiniMapaSemana(SemanaPlanificacion semana, boolean estaVisible) {
+        if (estaVisible) {
+            return "#93c5fd";
+        }
+
+        if (hayCompetenciaClaveEnSemana(semana)) {
+            return "#fca5a5";
+        }
+
+        if (hayCompetenciaEnSemana(semana)) {
+            return "#fde68a";
+        }
+
+        return "#f8fafc";
+    }
+
+    private boolean hayCompetenciaEnSemana(SemanaPlanificacion semana) {
+        if (configuracionPlanificacion == null) {
+            return false;
+        }
+
+        return configuracionPlanificacion.getCompetencias()
+                .stream()
+                .anyMatch(c -> !c.getFechaInicio().isAfter(semana.getFechaFin())
+                        && !c.getFechaFin().isBefore(semana.getFechaInicio()));
+    }
+
+    private boolean hayCompetenciaClaveEnSemana(SemanaPlanificacion semana) {
+        if (configuracionPlanificacion == null) {
+            return false;
+        }
+
+        return configuracionPlanificacion.getCompetencias()
+                .stream()
+                .anyMatch(c -> c.isCompetenciaClave()
+                        && !c.getFechaInicio().isAfter(semana.getFechaFin())
+                        && !c.getFechaFin().isBefore(semana.getFechaInicio()));
+    }
+
+    private void moverBloqueSemanas(int desplazamiento) {
+        int totalSemanas = semanasPlan.size();
+
+        semanaInicioVista += desplazamiento;
+
+        if (semanaInicioVista < 1) {
+            semanaInicioVista = 1;
+        }
+
+        if (semanaInicioVista > totalSemanas) {
+            semanaInicioVista = Math.max(1, totalSemanas - semanasPorVista + 1);
+        }
+
+        irASemana(semanaInicioVista);
+    }
+
+    private void cambiarVistaSemanas(int cantidadSemanas) {
+        semanasPorVista = cantidadSemanas;
+
+        if (cantidadSemanas == 4) {
+            aplicarZoom(1.0);
+        } else if (cantidadSemanas == 8) {
+            aplicarZoom(0.85);
+        } else if (cantidadSemanas == 12) {
+            aplicarZoom(0.72);
+        }
+
+        irASemana(semanaInicioVista);
+    }
+
+    private void mostrarTodoElPlan() {
+        semanasPorVista = semanasPlan.size();
+        aplicarZoom(0.48);
+        irASemana(1);
+    }
+
+    private void irASemanaActual() {
+        LocalDate hoy = LocalDate.now();
+
+        for (SemanaPlanificacion semana : semanasPlan) {
+            boolean dentro = !hoy.isBefore(semana.getFechaInicio())
+                    && !hoy.isAfter(semana.getFechaFin());
+
+            if (dentro) {
+                irASemana(semana.getNumeroSemana());
+                return;
+            }
+        }
+
+        irASemana(1);
+    }
+
+    private void irASemana(int numeroSemana) {
+        if (scrollPlanGrafico == null || semanasPlan.isEmpty()) {
+            return;
+        }
+
+        int totalSemanas = semanasPlan.size();
+
+        if (numeroSemana < 1) {
+            numeroSemana = 1;
+        }
+
+        if (numeroSemana > totalSemanas) {
+            numeroSemana = totalSemanas;
+        }
+
+        semanaInicioVista = numeroSemana;
+
+        double posicion;
+
+        if (totalSemanas <= semanasPorVista) {
+            posicion = 0;
+        } else {
+            posicion = (double) (numeroSemana - 1) / (double) (totalSemanas - semanasPorVista);
+        }
+
+        if (posicion < 0) {
+            posicion = 0;
+        }
+
+        if (posicion > 1) {
+            posicion = 1;
+        }
+
+        scrollPlanGrafico.setHvalue(posicion);
+
+        actualizarMiniMapaSemanas();
+        actualizarTextoRangoVisible();
+    }
+
+    private void aplicarZoom(double nuevoZoom) {
+        zoomPlanGrafico = nuevoZoom;
+
+        grid.setScaleX(zoomPlanGrafico);
+        grid.setScaleY(zoomPlanGrafico);
+
+        grid.setStyle(grid.getStyle() + "-fx-transform-origin: top left;");
+
+        actualizarTextoRangoVisible();
+    }
+
+    private void actualizarTextoRangoVisible() {
+        if (lblRangoVisible == null || semanasPlan.isEmpty()) {
+            return;
+        }
+
+        int semanaFinal = Math.min(semanasPlan.size(), semanaInicioVista + semanasPorVista - 1);
+
+        SemanaPlanificacion inicio = semanasPlan.get(semanaInicioVista - 1);
+        SemanaPlanificacion fin = semanasPlan.get(semanaFinal - 1);
+
+        lblRangoVisible.setText(
+                "Mostrando semanas "
+                        + semanaInicioVista
+                        + " a "
+                        + semanaFinal
+                        + "   |   Fechas: "
+                        + inicio.getFechaInicio()
+                        + " a "
+                        + fin.getFechaFin()
+                        + "   |   Zoom: "
+                        + Math.round(zoomPlanGrafico * 100)
+                        + "%"
+        );
+    }
+
+    private ScrollPane buscarScrollPane(Node node) {
+        if (node instanceof ScrollPane scrollPane) {
+            return scrollPane;
+        }
+
+        if (node instanceof Parent parent) {
+            for (Node child : parent.getChildrenUnmodifiable()) {
+                ScrollPane encontrado = buscarScrollPane(child);
+
+                if (encontrado != null) {
+                    return encontrado;
+                }
+            }
+        }
+
+        return null;
+    }
+
+
+    private ScrollPane crearCentroPlanGraficoOriginal() {
         VBox wrapper = new VBox();
         wrapper.setPadding(new Insets(18));
         wrapper.setStyle("-fx-background-color: #f4f7fb;");
@@ -1444,7 +1805,7 @@ public class PlanGraficoView extends Application {
 
         filaNumerica(row++, "VOLUMEN (%)", generarValores(totalSemanas, 60, 75, 90, 50));
         filaNumerica(row++, "INTENSIDAD (%)", new int[]{65, 70, 75, 60, 70, 75, 85, 60, 70, 90, 75, 85, 50});
-        filaIconos(row++, "COMPETENCIAS", new String[]{"", "", "", "", "", "", "", "", "", "⚽", "⚽", "", ""});
+        filaCompetenciasPlanificadas(row++);
         filaIconos(row++, "CONTROLES / TEST", new String[]{"", "📋", "📋", "", "", "📋", "", "📋", "", "", "📋", "📋", ""});
         filaSesionesCalculadas(row++);
         filaMinutosPlanificadosCalculados(row++);
@@ -1458,6 +1819,180 @@ public class PlanGraficoView extends Application {
         filaNumerica(row++, "PREP. TÉCNICO-TÁCTICA", generarValores(totalSemanas, 30, 45, 55, 60, 70, 75, 85));
         filaBarras(row++, "PREP. PSICOLÓGICA", "#8e44ad", new int[]{10, 20, 30, 35, 50, 55, 60, 45, 55, 60, 50, 25, 15});
         filaBarras(row++, "PREP. TEÓRICA", "#d49a00", new int[]{15, 25, 40, 45, 55, 65, 70, 55, 70, 75, 45, 25, 10});
+    }
+
+    private void filaCompetenciasPlanificadas(int row) {
+        grid.add(celdaTitulo("COMPETENCIAS"), 0, row);
+
+        for (int i = 0; i < semanasPlan.size(); i++) {
+            SemanaPlanificacion semana = semanasPlan.get(i);
+            int numeroSemana = semana.getNumeroSemana();
+
+            List<CompetenciaPlanificada> competenciasSemana = obtenerCompetenciasDeSemana(semana);
+
+            if (competenciasSemana.isEmpty()) {
+                grid.add(
+                        celdaEditable("COMPETENCIAS", numeroSemana, "", "#ffffff", 82, 34),
+                        i + 1,
+                        row
+                );
+                continue;
+            }
+
+            String texto = generarTextoCompetencia(competenciasSemana);
+            String color = obtenerColorCompetencia(competenciasSemana);
+
+            Label celda = celdaEditable(
+                    "COMPETENCIAS",
+                    numeroSemana,
+                    texto,
+                    color,
+                    82,
+                    34
+            );
+
+            celda.setStyle(celda.getStyle()
+                    + "-fx-font-size: 13px;"
+                    + "-fx-font-weight: bold;"
+                    + "-fx-text-fill: #08294a;"
+                    + "-fx-cursor: hand;"
+            );
+
+            Tooltip tooltip = new Tooltip(generarTooltipCompetencias(competenciasSemana));
+            tooltip.setWrapText(true);
+            tooltip.setMaxWidth(350);
+            Tooltip.install(celda, tooltip);
+
+            celda.setOnMouseClicked(e -> mostrarDetalleCompetencias(competenciasSemana));
+
+            grid.add(celda, i + 1, row);
+        }
+    }
+
+    private List<CompetenciaPlanificada> obtenerCompetenciasDeSemana(SemanaPlanificacion semana) {
+        if (configuracionPlanificacion == null) {
+            configuracionPlanificacion = ConfiguracionPlanificacionStore.getConfiguracionActiva();
+        }
+
+        List<CompetenciaPlanificada> resultado = new ArrayList<>();
+
+        for (CompetenciaPlanificada competencia : configuracionPlanificacion.getCompetencias()) {
+            if (competenciaCruzaSemana(competencia, semana)) {
+                resultado.add(competencia);
+            }
+        }
+
+        resultado.sort(Comparator
+                .comparing(CompetenciaPlanificada::isCompetenciaClave).reversed()
+                .thenComparing(CompetenciaPlanificada::getPrioridad).reversed()
+                .thenComparing(CompetenciaPlanificada::getFechaInicio)
+        );
+
+        return resultado;
+    }
+
+    private boolean competenciaCruzaSemana(CompetenciaPlanificada competencia, SemanaPlanificacion semana) {
+        LocalDate inicioCompetencia = competencia.getFechaInicio();
+        LocalDate finCompetencia = competencia.getFechaFin();
+
+        LocalDate inicioSemana = semana.getFechaInicio();
+        LocalDate finSemana = semana.getFechaFin();
+
+        return !inicioCompetencia.isAfter(finSemana) && !finCompetencia.isBefore(inicioSemana);
+    }
+
+    private String generarTextoCompetencia(List<CompetenciaPlanificada> competencias) {
+        if (competencias.size() == 1) {
+            CompetenciaPlanificada competencia = competencias.get(0);
+
+            if (competencia.isCompetenciaClave()) {
+                return "⚽★";
+            }
+
+            return "⚽";
+        }
+
+        boolean hayClave = competencias.stream().anyMatch(CompetenciaPlanificada::isCompetenciaClave);
+
+        if (hayClave) {
+            return "⚽★" + competencias.size();
+        }
+
+        return "⚽" + competencias.size();
+    }
+
+    private String obtenerColorCompetencia(List<CompetenciaPlanificada> competencias) {
+        boolean hayClave = competencias.stream().anyMatch(CompetenciaPlanificada::isCompetenciaClave);
+
+        if (hayClave) {
+            return "#ffb3b3";
+        }
+
+        boolean hayPrincipal = competencias.stream()
+                .anyMatch(c -> c.getTipoCompetencia() == TipoCompetencia.PRINCIPAL);
+
+        if (hayPrincipal) {
+            return "#ffd6a5";
+        }
+
+        boolean haySecundaria = competencias.stream()
+                .anyMatch(c -> c.getTipoCompetencia() == TipoCompetencia.SECUNDARIA);
+
+        if (haySecundaria) {
+            return "#fff3b0";
+        }
+
+        boolean hayPreparatoria = competencias.stream()
+                .anyMatch(c -> c.getTipoCompetencia() == TipoCompetencia.PREPARATORIA);
+
+        if (hayPreparatoria) {
+            return "#d9f99d";
+        }
+
+        boolean hayAmistosa = competencias.stream()
+                .anyMatch(c -> c.getTipoCompetencia() == TipoCompetencia.AMISTOSA);
+
+        if (hayAmistosa) {
+            return "#dbeafe";
+        }
+
+        return "#e5e7eb";
+    }
+
+    private String generarTooltipCompetencias(List<CompetenciaPlanificada> competencias) {
+        StringBuilder sb = new StringBuilder();
+
+        for (CompetenciaPlanificada competencia : competencias) {
+            sb.append(competencia.getNombre()).append("\n");
+            sb.append("Tipo: ").append(competencia.getTipoCompetencia()).append("\n");
+            sb.append("Fechas: ").append(competencia.getFechaInicio()).append(" a ").append(competencia.getFechaFin()).append("\n");
+            sb.append("Fase: ").append(competencia.getFase()).append("\n");
+            sb.append("Sede: ").append(competencia.getSede()).append("\n");
+            sb.append("Prioridad: ").append(competencia.getPrioridad()).append("\n");
+
+            if (competencia.isCompetenciaClave()) {
+                sb.append("Competencia clave: Sí\n");
+            }
+
+            sb.append("\n");
+        }
+
+        return sb.toString();
+    }
+
+    private void mostrarDetalleCompetencias(List<CompetenciaPlanificada> competencias) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Competencias de la semana");
+        alert.setHeaderText("Competencias registradas en esta semana");
+
+        TextArea area = new TextArea(generarTooltipCompetencias(competencias));
+        area.setEditable(false);
+        area.setWrapText(true);
+        area.setPrefWidth(500);
+        area.setPrefHeight(300);
+
+        alert.getDialogPane().setContent(area);
+        alert.showAndWait();
     }
 
     private void filaSesionesCalculadas(int row) {
@@ -3041,6 +3576,6 @@ public class PlanGraficoView extends Application {
     }
 
     public static void main(String[] args) {
-        launch(args);
+        ConfiguracionPlanificacionView.main(args);
     }
 }

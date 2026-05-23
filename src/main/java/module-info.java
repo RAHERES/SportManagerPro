@@ -18,8 +18,10 @@ module com.example.sportmanagerpro {
     opens com.example.sportmanagerpro.controllers to javafx.fxml;
     opens com.example.sportmanagerpro.planificacion.controller to javafx.fxml;
     opens com.example.sportmanagerpro.planificacion.model to javafx.fxml;
+    opens com.example.sportmanagerpro.planificacion.configuracion to javafx.fxml;
     exports com.example.sportmanagerpro;
     exports com.example.sportmanagerpro.controllers;
     exports com.example.sportmanagerpro.planificacion.controller;
     exports com.example.sportmanagerpro.planificacion.model;
+    exports com.example.sportmanagerpro.planificacion.configuracion;
 }
