@@ -1424,7 +1424,7 @@ public class PlanGraficoView extends Application {
                 new Segmento("COMPETITIVO", 7, 11, "#d9f3d2"),
                 new Segmento("TRANSITORIO", 12, 13, "#ffe2aa")
         );*/
-        filaPeriodosCalculados(row++);
+        filaPeriodosEditables(row++);
 
         filaEtapasCalculadas(row++);
 
@@ -1469,6 +1469,389 @@ public class PlanGraficoView extends Application {
         filaBarras(row++, "PREP. PSICOLÓGICA", "#8e44ad", new int[]{10, 20, 30, 35, 50, 55, 60, 45, 55, 60, 50, 25, 15});
         filaBarras(row++, "PREP. TEÓRICA", "#d49a00", new int[]{15, 25, 40, 45, 55, 65, 70, 55, 70, 75, 45, 25, 10});
     }
+
+    private void filaPeriodosEditables(int row) {
+        grid.add(celdaTitulo("PERÍODO"), 0, row);
+
+        int semana = 1;
+
+        while (semana <= semanasPlan.size()) {
+            PeriodoPlanificado periodo = buscarPeriodoPorSemanaInicio(semana);
+
+            if (periodo != null) {
+                Label celda = celdaEditable(
+                        "PERÍODO",
+                        periodo.getSemanaInicio(),
+                        periodo.getTipoPeriodo().toString() + "\n" + periodo.getPorcentaje() + "%",
+                        obtenerColorPeriodo(periodo.getTipoPeriodo()),
+                        82 * periodo.getDuracionSemanas(),
+                        34
+                );
+
+                celda.setStyle(celda.getStyle()
+                        + "-fx-font-weight: bold;"
+                        + "-fx-font-size: 11px;"
+                        + "-fx-cursor: hand;"
+                );
+
+                celda.setOnMouseClicked(event -> {
+                    if (event.getClickCount() == 2) {
+                        abrirEditorPeriodo(periodo);
+                    }
+                });
+
+                Tooltip.install(celda, new Tooltip(
+                        "Doble clic para editar o eliminar\n"
+                                + "Tipo: " + periodo.getTipoPeriodo()
+                                + "\nSemana inicio: " + periodo.getSemanaInicio()
+                                + "\nSemana fin: " + periodo.getSemanaFin()
+                                + "\nDuración: " + periodo.getDuracionSemanas() + " semanas"
+                                + "\nPorcentaje: " + periodo.getPorcentaje() + "%"
+                ));
+
+                grid.add(celda, periodo.getSemanaInicio(), row, periodo.getDuracionSemanas(), 1);
+
+                semana = periodo.getSemanaFin() + 1;
+            } else {
+                int semanaDisponible = semana;
+
+                Label celdaVacia = celdaPeriodoDisponible(semanaDisponible, row);
+                grid.add(celdaVacia, semanaDisponible, row);
+
+                semana++;
+            }
+        }
+    }
+
+    private PeriodoPlanificado buscarPeriodoPorSemanaInicio(int semanaInicio) {
+        for (PeriodoPlanificado periodo : periodosPlanificados) {
+            if (periodo.getSemanaInicio() == semanaInicio) {
+                return periodo;
+            }
+        }
+
+        return null;
+    }
+
+    private double calcularPorcentajePeriodo(int semanaInicio, int semanaFin) {
+        int duracion = semanaFin - semanaInicio + 1;
+        int totalSemanas = semanasPlan.size();
+
+        if (totalSemanas <= 0) {
+            return 0;
+        }
+
+        double porcentaje = (duracion * 100.0) / totalSemanas;
+
+        return Math.round(porcentaje * 10.0) / 10.0;
+    }
+
+    private void abrirEditorPeriodo(PeriodoPlanificado periodoOriginal) {
+        Dialog<PeriodoPlanificado> dialog = new Dialog<>();
+        dialog.setTitle("Editar periodo");
+        dialog.setHeaderText("Modificar o eliminar periodo");
+
+        ButtonType btnGuardar = new ButtonType("Guardar cambios", ButtonBar.ButtonData.OK_DONE);
+        ButtonType btnEliminar = new ButtonType("Eliminar periodo", ButtonBar.ButtonData.LEFT);
+        ButtonType btnCancelar = new ButtonType("Cancelar", ButtonBar.ButtonData.CANCEL_CLOSE);
+
+        dialog.getDialogPane().getButtonTypes().addAll(btnGuardar, btnEliminar, btnCancelar);
+
+        ComboBox<TipoPeriodoPlanificacion> cbTipo = new ComboBox<>();
+        cbTipo.getItems().addAll(TipoPeriodoPlanificacion.values());
+        cbTipo.setValue(periodoOriginal.getTipoPeriodo());
+
+        Spinner<Integer> spSemanaInicio = new Spinner<>(
+                1,
+                semanasPlan.size(),
+                periodoOriginal.getSemanaInicio()
+        );
+        spSemanaInicio.setEditable(true);
+
+        Spinner<Integer> spSemanaFin = new Spinner<>(
+                1,
+                semanasPlan.size(),
+                periodoOriginal.getSemanaFin()
+        );
+
+
+        spSemanaFin.setEditable(true);
+
+        Spinner<Double> spPorcentaje = new Spinner<>(
+                0.0,
+                100.0,
+                calcularPorcentajePeriodo(periodoOriginal.getSemanaInicio(), periodoOriginal.getSemanaFin()),
+                0.1
+        );
+        spPorcentaje.setEditable(false);
+        spPorcentaje.setDisable(true);
+
+        spSemanaInicio.valueProperty().addListener((obs, old, val) -> {
+            double nuevoPorcentaje = calcularPorcentajePeriodo(val, spSemanaFin.getValue());
+            spPorcentaje.getValueFactory().setValue(nuevoPorcentaje);
+        });
+
+        spSemanaFin.valueProperty().addListener((obs, old, val) -> {
+            double nuevoPorcentaje = calcularPorcentajePeriodo(spSemanaInicio.getValue(), val);
+            spPorcentaje.getValueFactory().setValue(nuevoPorcentaje);
+        });
+
+
+        GridPane gridDialog = new GridPane();
+        gridDialog.setHgap(12);
+        gridDialog.setVgap(12);
+        gridDialog.setPadding(new Insets(20));
+
+        gridDialog.add(new Label("Tipo de periodo:"), 0, 0);
+        gridDialog.add(cbTipo, 1, 0);
+
+        gridDialog.add(new Label("Semana inicio:"), 0, 1);
+        gridDialog.add(spSemanaInicio, 1, 1);
+
+        gridDialog.add(new Label("Semana fin:"), 0, 2);
+        gridDialog.add(spSemanaFin, 1, 2);
+
+        gridDialog.add(new Label("Porcentaje:"), 0, 3);
+        gridDialog.add(spPorcentaje, 1, 3);
+
+        dialog.getDialogPane().setContent(gridDialog);
+
+        final boolean[] eliminar = {false};
+
+        Button btnEliminarNode = (Button) dialog.getDialogPane().lookupButton(btnEliminar);
+        btnEliminarNode.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+            event.consume();
+
+            Alert confirmacion = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmacion.setTitle("Eliminar periodo");
+            confirmacion.setHeaderText("¿Deseas eliminar este periodo?");
+            confirmacion.setContentText("Las semanas ocupadas quedarán disponibles para agregar otro periodo.");
+
+            Optional<ButtonType> respuesta = confirmacion.showAndWait();
+
+            if (respuesta.isPresent() && respuesta.get() == ButtonType.OK) {
+                eliminar[0] = true;
+                dialog.setResult(null);
+                dialog.close();
+            }
+        });
+
+        dialog.setResultConverter(button -> {
+            if (button == btnGuardar) {
+                int semanaInicio = spSemanaInicio.getValue();
+                int semanaFin = spSemanaFin.getValue();
+
+                if (semanaFin < semanaInicio) {
+                    mostrarAlerta("Error", "La semana final no puede ser menor que la semana inicial.");
+                    return null;
+                }
+
+                if (existeCrucePeriodo(periodoOriginal, semanaInicio, semanaFin)) {
+                    mostrarAlerta("Cruce de periodos", "El rango seleccionado se cruza con otro periodo.");
+                    return null;
+                }
+
+                return new PeriodoPlanificado(
+                        cbTipo.getValue(),
+                        semanaInicio,
+                        semanaFin,
+                        obtenerFechaInicioSemana(semanaInicio),
+                        obtenerFechaFinSemana(semanaFin),
+                        calcularPorcentajePeriodo(semanaInicio, semanaFin)
+                );
+            }
+
+            return null;
+        });
+
+        Optional<PeriodoPlanificado> resultado = dialog.showAndWait();
+
+        if (eliminar[0]) {
+            eliminarPeriodo(periodoOriginal);
+            return;
+        }
+
+        resultado.ifPresent(periodoNuevo -> {
+            reemplazarPeriodo(periodoOriginal, periodoNuevo);
+            modoPeriodosManual = true;
+            redibujarPlanGraficoCompleto();
+        });
+    }
+
+    private void eliminarPeriodo(PeriodoPlanificado periodo) {
+        periodosPlanificados.remove(periodo);
+        modoPeriodosManual = true;
+        redibujarPlanGraficoCompleto();
+    }
+
+
+    private void abrirEditorNuevoPeriodo(int semanaDisponible) {
+        Dialog<PeriodoPlanificado> dialog = new Dialog<>();
+        dialog.setTitle("Agregar periodo");
+        dialog.setHeaderText("Agregar nuevo periodo desde la semana " + semanaDisponible);
+
+        ButtonType btnGuardar = new ButtonType("Agregar periodo", ButtonBar.ButtonData.OK_DONE);
+        ButtonType btnCancelar = new ButtonType("Cancelar", ButtonBar.ButtonData.CANCEL_CLOSE);
+
+        dialog.getDialogPane().getButtonTypes().addAll(btnGuardar, btnCancelar);
+
+        ComboBox<TipoPeriodoPlanificacion> cbTipo = new ComboBox<>();
+        cbTipo.getItems().addAll(TipoPeriodoPlanificacion.values());
+        cbTipo.setValue(TipoPeriodoPlanificacion.PREPARATORIO);
+
+        Spinner<Integer> spSemanaInicio = new Spinner<>(
+                1,
+                semanasPlan.size(),
+                semanaDisponible
+        );
+        spSemanaInicio.setEditable(true);
+
+        Spinner<Integer> spSemanaFin = new Spinner<>(
+                1,
+                semanasPlan.size(),
+                semanaDisponible
+        );
+        spSemanaFin.setEditable(true);
+
+        Spinner<Double> spPorcentaje = new Spinner<>(
+                0.0,
+                100.0,
+                calcularPorcentajePeriodo(semanaDisponible, semanaDisponible),
+                0.1
+        );
+        spPorcentaje.setEditable(false);
+        spPorcentaje.setDisable(true);
+
+        spSemanaInicio.valueProperty().addListener((obs, old, val) -> {
+            double nuevoPorcentaje = calcularPorcentajePeriodo(val, spSemanaFin.getValue());
+            spPorcentaje.getValueFactory().setValue(nuevoPorcentaje);
+        });
+
+        spSemanaFin.valueProperty().addListener((obs, old, val) -> {
+            double nuevoPorcentaje = calcularPorcentajePeriodo(spSemanaInicio.getValue(), val);
+            spPorcentaje.getValueFactory().setValue(nuevoPorcentaje);
+        });
+
+        GridPane gridDialog = new GridPane();
+        gridDialog.setHgap(12);
+        gridDialog.setVgap(12);
+        gridDialog.setPadding(new Insets(20));
+
+        gridDialog.add(new Label("Tipo de periodo:"), 0, 0);
+        gridDialog.add(cbTipo, 1, 0);
+
+        gridDialog.add(new Label("Semana inicio:"), 0, 1);
+        gridDialog.add(spSemanaInicio, 1, 1);
+
+        gridDialog.add(new Label("Semana fin:"), 0, 2);
+        gridDialog.add(spSemanaFin, 1, 2);
+
+        gridDialog.add(new Label("Porcentaje:"), 0, 3);
+        gridDialog.add(spPorcentaje, 1, 3);
+
+        dialog.getDialogPane().setContent(gridDialog);
+
+        dialog.setResultConverter(button -> {
+            if (button == btnGuardar) {
+                int semanaInicio = spSemanaInicio.getValue();
+                int semanaFin = spSemanaFin.getValue();
+
+                if (semanaFin < semanaInicio) {
+                    mostrarAlerta("Error", "La semana final no puede ser menor que la semana inicial.");
+                    return null;
+                }
+
+                if (existeCrucePeriodo(null, semanaInicio, semanaFin)) {
+                    mostrarAlerta("Cruce de periodos", "El rango seleccionado se cruza con otro periodo.");
+                    return null;
+                }
+
+                return new PeriodoPlanificado(
+                        cbTipo.getValue(),
+                        semanaInicio,
+                        semanaFin,
+                        obtenerFechaInicioSemana(semanaInicio),
+                        obtenerFechaFinSemana(semanaFin),
+                        calcularPorcentajePeriodo(semanaInicio, semanaFin)                );
+            }
+
+            return null;
+        });
+
+        Optional<PeriodoPlanificado> resultado = dialog.showAndWait();
+
+        resultado.ifPresent(periodoNuevo -> {
+            periodosPlanificados.add(periodoNuevo);
+            periodosPlanificados.sort(Comparator.comparingInt(PeriodoPlanificado::getSemanaInicio));
+            modoPeriodosManual = true;
+            redibujarPlanGraficoCompleto();
+        });
+    }
+
+
+    private boolean existeCrucePeriodo(PeriodoPlanificado periodoIgnorado, int nuevaSemanaInicio, int nuevaSemanaFin) {
+        for (PeriodoPlanificado periodo : periodosPlanificados) {
+            if (periodo == periodoIgnorado) {
+                continue;
+            }
+
+            boolean cruza = nuevaSemanaInicio <= periodo.getSemanaFin()
+                    && nuevaSemanaFin >= periodo.getSemanaInicio();
+
+            if (cruza) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+
+    private void reemplazarPeriodo(PeriodoPlanificado periodoOriginal, PeriodoPlanificado periodoNuevo) {
+        int index = periodosPlanificados.indexOf(periodoOriginal);
+
+        if (index >= 0) {
+            periodosPlanificados.set(index, periodoNuevo);
+        }
+
+        periodosPlanificados.sort(Comparator.comparingInt(PeriodoPlanificado::getSemanaInicio));
+    }
+
+
+    private LocalDate obtenerFechaInicioSemana(int numeroSemana) {
+        return semanasPlan.stream()
+                .filter(s -> s.getNumeroSemana() == numeroSemana)
+                .findFirst()
+                .map(SemanaPlanificacion::getFechaInicio)
+                .orElse(fechaInicioPlan);
+    }
+
+
+    private LocalDate obtenerFechaFinSemana(int numeroSemana) {
+        return semanasPlan.stream()
+                .filter(s -> s.getNumeroSemana() == numeroSemana)
+                .findFirst()
+                .map(SemanaPlanificacion::getFechaFin)
+                .orElse(fechaFinPlan);
+    }
+
+    private String obtenerColorPeriodo(TipoPeriodoPlanificacion tipo) {
+        return switch (tipo) {
+            case PREPARATORIO -> "#cfe3ff";
+            case COMPETITIVO -> "#d8f5d0";
+            case TRANSITORIO -> "#ffe5c4";
+            default -> "#e5e7eb";
+        };
+    }
+
+    private void redibujarPlanGraficoCompleto() {
+        grid.getChildren().clear();
+        celdasPlan.clear();
+        labelsPlan.clear();
+
+        construirPlanGrafico();
+    }
+
 
     private void filaCompetenciasPlanificadas(int row) {
         grid.add(celdaTitulo("COMPETENCIAS"), 0, row);
@@ -1516,6 +1899,50 @@ public class PlanGraficoView extends Application {
 
             grid.add(celda, i + 1, row);
         }
+    }
+
+    private Label celdaPeriodoDisponible(int semana, int row) {
+        Label celda = new Label("+");
+        celda.setAlignment(Pos.CENTER);
+        celda.setMinSize(82, 34);
+        celda.setPrefSize(82, 34);
+        celda.setMaxSize(82, 34);
+
+        String estiloNormal =
+                "-fx-background-color: #f8fafc;"
+                        + "-fx-border-color: #94a3b8;"
+                        + "-fx-border-style: dashed;"
+                        + "-fx-border-width: 1.2;"
+                        + "-fx-text-fill: #08294a;"
+                        + "-fx-font-size: 14px;"
+                        + "-fx-font-weight: bold;"
+                        + "-fx-cursor: hand;";
+
+        String estiloHover =
+                "-fx-background-color: #dbeafe;"
+                        + "-fx-border-color: #0875c9;"
+                        + "-fx-border-style: dashed;"
+                        + "-fx-border-width: 1.6;"
+                        + "-fx-text-fill: #0875c9;"
+                        + "-fx-font-size: 16px;"
+                        + "-fx-font-weight: bold;"
+                        + "-fx-cursor: hand;";
+
+        celda.setStyle(estiloNormal);
+
+        Tooltip tooltip = new Tooltip("Doble clic para agregar un periodo en la semana " + semana);
+        Tooltip.install(celda, tooltip);
+
+        celda.setOnMouseEntered(e -> celda.setStyle(estiloHover));
+        celda.setOnMouseExited(e -> celda.setStyle(estiloNormal));
+
+        celda.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2) {
+                abrirEditorNuevoPeriodo(semana);
+            }
+        });
+
+        return celda;
     }
 
     private List<CompetenciaPlanificada> obtenerCompetenciasDeSemana(SemanaPlanificacion semana) {
