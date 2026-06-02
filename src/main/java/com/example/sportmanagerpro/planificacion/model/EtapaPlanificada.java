@@ -1,17 +1,15 @@
 package com.example.sportmanagerpro.planificacion.model;
 
 import com.example.sportmanagerpro.planificacion.enums.TipoEtapaPlanificacion;
-import com.example.sportmanagerpro.planificacion.enums.TipoPeriodoPlanificacion;
 
 import java.time.LocalDate;
 
 /**
- * Representa una etapa metodológica dentro de un periodo o bloque de planificación.
+ * Representa una etapa dentro del plan gráfico.
  */
 public class EtapaPlanificada {
 
     private TipoEtapaPlanificacion tipoEtapa;
-    private TipoPeriodoPlanificacion periodoPadre;
     private int semanaInicio;
     private int semanaFin;
     private int duracionSemanas;
@@ -20,15 +18,12 @@ public class EtapaPlanificada {
     private double porcentajeDentroPeriodo;
 
     public EtapaPlanificada(TipoEtapaPlanificacion tipoEtapa,
-                            TipoPeriodoPlanificacion periodoPadre,
                             int semanaInicio,
                             int semanaFin,
                             LocalDate fechaInicio,
                             LocalDate fechaFin,
                             double porcentajeDentroPeriodo) {
-
         this.tipoEtapa = tipoEtapa;
-        this.periodoPadre = periodoPadre;
         this.semanaInicio = semanaInicio;
         this.semanaFin = semanaFin;
         this.duracionSemanas = semanaFin - semanaInicio + 1;
@@ -41,31 +36,62 @@ public class EtapaPlanificada {
         return tipoEtapa;
     }
 
-    public TipoPeriodoPlanificacion getPeriodoPadre() {
-        return periodoPadre;
+    public void setTipoEtapa(TipoEtapaPlanificacion tipoEtapa) {
+        this.tipoEtapa = tipoEtapa;
     }
 
     public int getSemanaInicio() {
         return semanaInicio;
     }
 
+    public void setSemanaInicio(int semanaInicio) {
+        this.semanaInicio = semanaInicio;
+        recalcularDuracion();
+    }
+
     public int getSemanaFin() {
         return semanaFin;
+    }
+
+    public void setSemanaFin(int semanaFin) {
+        this.semanaFin = semanaFin;
+        recalcularDuracion();
     }
 
     public int getDuracionSemanas() {
         return duracionSemanas;
     }
 
+    public void setDuracionSemanas(int duracionSemanas) {
+        this.duracionSemanas = duracionSemanas;
+        this.semanaFin = this.semanaInicio + duracionSemanas - 1;
+    }
+
     public LocalDate getFechaInicio() {
         return fechaInicio;
+    }
+
+    public void setFechaInicio(LocalDate fechaInicio) {
+        this.fechaInicio = fechaInicio;
     }
 
     public LocalDate getFechaFin() {
         return fechaFin;
     }
 
+    public void setFechaFin(LocalDate fechaFin) {
+        this.fechaFin = fechaFin;
+    }
+
     public double getPorcentajeDentroPeriodo() {
         return porcentajeDentroPeriodo;
+    }
+
+    public void setPorcentajeDentroPeriodo(double porcentajeDentroPeriodo) {
+        this.porcentajeDentroPeriodo = porcentajeDentroPeriodo;
+    }
+
+    private void recalcularDuracion() {
+        this.duracionSemanas = this.semanaFin - this.semanaInicio + 1;
     }
 }

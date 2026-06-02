@@ -2,6 +2,8 @@ package com.example.sportmanagerpro.planificacion.model;
 
 import com.example.sportmanagerpro.planificacion.configuracion.*;
 import com.example.sportmanagerpro.planificacion.enums.*;
+import com.example.sportmanagerpro.planificacion.persistencia.PlanGrafico;
+import com.example.sportmanagerpro.planificacion.persistencia.PlanGraficoRepository;
 import com.example.sportmanagerpro.planificacion.service.EtapasPorPeriodizacionService;
 import com.example.sportmanagerpro.planificacion.service.PeriodizacionService;
 import javafx.application.Application;
@@ -23,15 +25,23 @@ import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import javafx.util.converter.IntegerStringConverter;
 
-import java.time.DayOfWeek;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.YearMonth;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.util.*;
 
 public class PlanGraficoView extends Application {
+
+
+    private final List<FilaPlanGraficoPersonalizada> filasPersonalizadas = new ArrayList<>();
+
+    private final PlanGraficoRepository planGraficoRepository = new PlanGraficoRepository();
 
     private ConfiguracionPlanificacion configuracionPlanificacion;
 
@@ -235,6 +245,12 @@ public class PlanGraficoView extends Application {
         HBox controles = new HBox(12);
         controles.setAlignment(Pos.CENTER_LEFT);
 
+        Button btnGuardarPlan = botonVerde("Guardar plan");
+        btnGuardarPlan.setOnAction(e -> guardarPlanGrafico());
+
+        Button btnCargarPlan = botonNormal("Cargar plan");
+        btnCargarPlan.setOnAction(e -> cargarPlanGrafico());
+
         dpFechaInicio = new DatePicker(fechaInicioPlan);
         dpFechaFin = new DatePicker(fechaFinPlan);
 
@@ -281,6 +297,9 @@ public class PlanGraficoView extends Application {
         Button btnEditarMicrociclos = botonNormal("Editar microciclos");
         btnEditarMicrociclos.setOnAction(e -> abrirEditorMicrociclos());
 
+        Button btnFilas = botonNormal("Filas + / -");
+        btnFilas.setOnAction(e -> abrirGestorFilasPersonalizadas());
+
 
         Button semanas = botonNormal("Vista semanas");
         Button meses = botonVerde("Vista meses");
@@ -292,9 +311,12 @@ public class PlanGraficoView extends Application {
                 new Label("Fin:"), dpFechaFin,
                 cbTipoPeriodizacion,
                 generar,
+                btnGuardarPlan,
+                btnCargarPlan,
                 btnEditarPeriodos,
                 btnEditarMesociclos,
                 btnEditarMicrociclos,
+                btnFilas,
                 new Separator(),
                 botonNormal("←"),
                 botonNormal("→"),
@@ -307,6 +329,596 @@ public class PlanGraficoView extends Application {
 
         contenedor.getChildren().addAll(titulo, datos, controles);
         return contenedor;
+    }
+
+    private final Path carpetaPlanesGraficos = Paths.get(
+            System.getProperty("user.home"),
+            "SportManagerPro",
+            "planes_graficos"
+    );
+
+    private void guardarPlanGrafico() {
+        TextInputDialog dialog = new TextInputDialog("Plan gráfico 2026");
+        dialog.setTitle("Guardar plan gráfico");
+        dialog.setHeaderText("Nombre del plan");
+        dialog.setContentText("Escribe un nombre para guardar este plan:");
+
+        Optional<String> respuesta = dialog.showAndWait();
+
+        if (respuesta.isEmpty() || respuesta.get().trim().isEmpty()) {
+            return;
+        }
+
+        try {
+            PlanGrafico plan = convertirVistaAPlanGrafico(respuesta.get().trim());
+
+            planGraficoRepository.guardar(plan);
+
+            mostrarInformacion(
+                    "Plan guardado",
+                    "El plan gráfico se guardó correctamente en formato JSON."
+            );
+
+        } catch (Exception ex) {
+            mostrarAlerta("Error al guardar", "No se pudo guardar el plan gráfico.");
+            ex.printStackTrace();
+        }
+    }
+
+    private void cargarPlanGrafico() {
+        try {
+            List<Path> archivos = planGraficoRepository.listarPlanes();
+
+            if (archivos.isEmpty()) {
+                mostrarAlerta("Sin planes guardados", "Todavía no existe ningún plan gráfico guardado.");
+                return;
+            }
+
+            ChoiceDialog<Path> dialog = new ChoiceDialog<>(archivos.get(0), archivos);
+            dialog.setTitle("Cargar plan gráfico");
+            dialog.setHeaderText("Selecciona el plan que deseas cargar");
+            dialog.setContentText("Plan:");
+
+            Optional<Path> respuesta = dialog.showAndWait();
+
+            if (respuesta.isEmpty()) {
+                return;
+            }
+
+            PlanGrafico plan = planGraficoRepository.cargar(respuesta.get());
+
+            aplicarPlanGraficoEnVista(plan);
+
+            mostrarInformacion(
+                    "Plan cargado",
+                    "El plan gráfico seleccionado se cargó correctamente."
+            );
+
+        } catch (Exception ex) {
+            mostrarAlerta("Error al cargar", "No se pudo cargar el plan gráfico seleccionado.");
+            ex.printStackTrace();
+        }
+    }
+
+    /*private void guardarPlanGrafico() {
+        TextInputDialog dialog = new TextInputDialog("Plan gráfico 2026");
+        dialog.setTitle("Guardar plan gráfico");
+        dialog.setHeaderText("Nombre del plan");
+        dialog.setContentText("Escribe un nombre para guardar este plan:");
+
+        Optional<String> respuesta = dialog.showAndWait();
+
+        if (respuesta.isEmpty() || respuesta.get().trim().isEmpty()) {
+            return;
+        }
+
+        String nombreArchivo = respuesta.get()
+                .trim()
+                .replaceAll("[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ _-]", "")
+                .replace(" ", "_");
+
+        Path archivoPlanGrafico = carpetaPlanesGraficos.resolve(nombreArchivo + ".properties");
+
+        try {
+            Files.createDirectories(carpetaPlanesGraficos);
+
+            Properties props = new Properties();
+
+            props.setProperty("fechaInicio", fechaInicioPlan.toString());
+            props.setProperty("fechaFin", fechaFinPlan.toString());
+            props.setProperty("tipoPeriodizacion", tipoPeriodizacionActual.name());
+            props.setProperty("deporte", deporteActual);
+            props.setProperty("modoPeriodosManual", String.valueOf(modoPeriodosManual));
+
+            props.setProperty("periodos.total", String.valueOf(periodosPlanificados.size()));
+            for (int i = 0; i < periodosPlanificados.size(); i++) {
+                PeriodoPlanificado p = periodosPlanificados.get(i);
+                String base = "periodos." + i + ".";
+
+                props.setProperty(base + "tipo", p.getTipoPeriodo().name());
+                props.setProperty(base + "semanaInicio", String.valueOf(p.getSemanaInicio()));
+                props.setProperty(base + "semanaFin", String.valueOf(p.getSemanaFin()));
+                props.setProperty(base + "porcentaje", String.valueOf(p.getPorcentaje()));
+            }
+
+            props.setProperty("mesociclos.total", String.valueOf(mesociclosPlanificados.size()));
+            for (int i = 0; i < mesociclosPlanificados.size(); i++) {
+                MesocicloPlanificado m = mesociclosPlanificados.get(i);
+                String base = "mesociclos." + i + ".";
+
+                props.setProperty(base + "tipo", m.getTipoMesociclo().name());
+                props.setProperty(base + "nombre", m.getNombre());
+                props.setProperty(base + "semanaInicio", String.valueOf(m.getSemanaInicio()));
+                props.setProperty(base + "duracion", String.valueOf(m.getDuracionSemanas()));
+                props.setProperty(base + "color", m.getColorHex());
+            }
+
+            props.setProperty("microciclos.total", String.valueOf(microciclosPlanificados.size()));
+            for (int i = 0; i < microciclosPlanificados.size(); i++) {
+                MicrocicloGraficoPlanificado m = microciclosPlanificados.get(i);
+                String base = "microciclos." + i + ".";
+
+                props.setProperty(base + "tipo", m.getTipoMicrociclo().name());
+                props.setProperty(base + "nombre", m.getNombre());
+                props.setProperty(base + "semanaInicio", String.valueOf(m.getSemanaInicio()));
+                props.setProperty(base + "duracion", String.valueOf(m.getDuracionSemanas()));
+                props.setProperty(base + "color", m.getColorHex());
+            }
+
+            try (OutputStream out = Files.newOutputStream(archivoPlanGrafico)) {
+                props.store(out, "Plan grafico SportManagerPro");
+            }
+
+            mostrarInformacion("Plan guardado", "El plan gráfico se guardó correctamente.");
+
+        } catch (IOException ex) {
+            mostrarAlerta("Error al guardar", "No se pudo guardar el plan gráfico.");
+            ex.printStackTrace();
+        }
+    }
+
+    private void cargarPlanGrafico() {
+        try {
+            Files.createDirectories(carpetaPlanesGraficos);
+
+            List<Path> archivos = Files.list(carpetaPlanesGraficos)
+                    .filter(path -> path.toString().endsWith(".properties"))
+                    .toList();
+
+            if (archivos.isEmpty()) {
+                mostrarAlerta("Sin planes guardados", "Todavía no existe ningún plan gráfico guardado.");
+                return;
+            }
+
+            ChoiceDialog<Path> dialog = new ChoiceDialog<>(archivos.get(0), archivos);
+            dialog.setTitle("Cargar plan gráfico");
+            dialog.setHeaderText("Selecciona el plan que deseas cargar");
+            dialog.setContentText("Plan:");
+
+            Optional<Path> respuesta = dialog.showAndWait();
+
+            if (respuesta.isEmpty()) {
+                return;
+            }
+
+            cargarPlanGraficoDesdeArchivo(respuesta.get());
+
+        } catch (IOException ex) {
+            mostrarAlerta("Error al cargar", "No se pudieron leer los planes guardados.");
+            ex.printStackTrace();
+        }
+    }
+*/
+    private PlanGrafico convertirVistaAPlanGrafico(String nombrePlan) {
+        PlanGrafico plan = new PlanGrafico();
+
+        plan.id = UUID.randomUUID().toString();
+        plan.nombrePlan = nombrePlan;
+
+        plan.fechaInicio = fechaInicioPlan.toString();
+        plan.fechaFin = fechaFinPlan.toString();
+
+        plan.deporte = deporteActual;
+        plan.categoria = "Sub 17 Femenil";
+        plan.objetivo = "Estatal CONADEMS";
+        plan.tipoPeriodizacion = tipoPeriodizacionActual.name();
+
+        plan.modoPeriodosManual = modoPeriodosManual;
+
+        plan.fechaCreacion = LocalDateTime.now().toString();
+        plan.fechaUltimaModificacion = LocalDateTime.now().toString();
+
+        for (PeriodoPlanificado periodo : periodosPlanificados) {
+            PlanGrafico.PeriodoDTO dto = new PlanGrafico.PeriodoDTO();
+            dto.tipo = periodo.getTipoPeriodo().name();
+            dto.semanaInicio = periodo.getSemanaInicio();
+            dto.semanaFin = periodo.getSemanaFin();
+            dto.porcentaje = periodo.getPorcentaje();
+
+            plan.periodos.add(dto);
+        }
+
+        for (MesocicloPlanificado mesociclo : mesociclosPlanificados) {
+            PlanGrafico.MesocicloDTO dto = new PlanGrafico.MesocicloDTO();
+            dto.tipo = mesociclo.getTipoMesociclo().name();
+            dto.nombre = mesociclo.getNombre();
+            dto.semanaInicio = mesociclo.getSemanaInicio();
+            dto.duracion = mesociclo.getDuracionSemanas();
+            dto.color = mesociclo.getColorHex();
+
+            plan.mesociclos.add(dto);
+        }
+
+        for (MicrocicloGraficoPlanificado microciclo : microciclosPlanificados) {
+            PlanGrafico.MicrocicloDTO dto = new PlanGrafico.MicrocicloDTO();
+            dto.tipo = microciclo.getTipoMicrociclo().name();
+            dto.nombre = microciclo.getNombre();
+            dto.semanaInicio = microciclo.getSemanaInicio();
+            dto.duracion = microciclo.getDuracionSemanas();
+            dto.color = microciclo.getColorHex();
+
+            plan.microciclos.add(dto);
+        }
+
+        for (SesionMicrocicloPlanificada sesion : sesionesMicrociclo) {
+            PlanGrafico.SesionDTO dto = new PlanGrafico.SesionDTO();
+            dto.semana = sesion.getSemana();
+            dto.diaSemana = sesion.getDiaSemana().name();
+            dto.horaInicio = sesion.getHoraInicio().toString();
+            dto.duracionMinutos = sesion.getDuracionMinutos();
+            dto.extra = sesion.isExtra();
+            dto.observaciones = sesion.getObservaciones();
+
+            plan.sesiones.add(dto);
+        }
+
+        if (configuracionPlanificacion != null) {
+            for (CompetenciaPlanificada competencia : configuracionPlanificacion.getCompetencias()) {
+                PlanGrafico.CompetenciaDTO dto = new PlanGrafico.CompetenciaDTO();
+                dto.nombre = competencia.getNombre();
+                dto.tipoCompetencia = competencia.getTipoCompetencia().name();
+                dto.fechaInicio = competencia.getFechaInicio().toString();
+                dto.fechaFin = competencia.getFechaFin().toString();
+                dto.fase = competencia.getFase();
+                dto.sede = competencia.getSede();
+                dto.objetivo = competencia.getObjetivo();
+                dto.prioridad = competencia.getPrioridad();
+                dto.competenciaClave = competencia.isCompetenciaClave();
+                dto.observaciones = competencia.getObservaciones();
+
+                plan.competencias.add(dto);
+            }
+        }
+
+        for (FilaPlanGraficoPersonalizada fila : filasPersonalizadas) {
+            PlanGrafico.FilaPersonalizadaDTO dto = new PlanGrafico.FilaPersonalizadaDTO();
+            dto.id = fila.getId();
+            dto.nombre = fila.getNombre();
+            dto.colorTitulo = fila.getColorTitulo();
+            dto.editable = fila.isEditable();
+
+            plan.filasPersonalizadas.add(dto);
+        }
+
+        for (CeldaPlanGrafico celda : celdasPlan.values()) {
+            PlanGrafico.CeldaDTO dto = new PlanGrafico.CeldaDTO();
+            dto.fila = celda.getFila();
+            dto.semana = celda.getSemana();
+            dto.valor = celda.getValor();
+            dto.colorHex = celda.getColorHex();
+            dto.editable = celda.isEditable();
+
+            plan.celdas.add(dto);
+        }
+
+        return plan;
+    }
+
+    private void aplicarPlanGraficoEnVista(PlanGrafico plan) {
+        fechaInicioPlan = LocalDate.parse(plan.fechaInicio);
+        fechaFinPlan = LocalDate.parse(plan.fechaFin);
+
+        deporteActual = plan.deporte == null ? "Fútbol" : plan.deporte;
+        tipoPeriodizacionActual = TipoPeriodizacion.valueOf(plan.tipoPeriodizacion);
+        modoPeriodosManual = plan.modoPeriodosManual;
+
+        dpFechaInicio.setValue(fechaInicioPlan);
+        dpFechaFin.setValue(fechaFinPlan);
+        cbTipoPeriodizacion.setValue(tipoPeriodizacionActual);
+
+        generarSemanasPlanificacion();
+
+        periodosPlanificados.clear();
+        mesociclosPlanificados.clear();
+        microciclosPlanificados.clear();
+        sesionesMicrociclo.clear();
+        filasPersonalizadas.clear();
+        celdasPlan.clear();
+        labelsPlan.clear();
+
+        cargarPeriodosDesdePlan(plan);
+        cargarMesociclosDesdePlan(plan);
+        cargarMicrociclosDesdePlan(plan);
+        cargarSesionesDesdePlan(plan);
+        cargarCompetenciasDesdePlan(plan);
+        cargarFilasPersonalizadasDesdePlan(plan);
+        cargarCeldasDesdePlan(plan);
+
+        actualizarFechasPeriodos();
+        actualizarFechasMesociclos();
+        actualizarFechasMicrociclos();
+
+        mesociclosInicializados = !mesociclosPlanificados.isEmpty();
+        microciclosInicializados = !microciclosPlanificados.isEmpty();
+        sesionesInicializadas = !sesionesMicrociclo.isEmpty();
+
+        etapasPlanificadas = etapasService.generarEtapas(
+                tipoPeriodizacionActual,
+                periodosPlanificados,
+                semanasPlan
+        );
+
+        limpiarSeleccionCelda();
+        construirPlanGrafico();
+    }
+
+    private void cargarFilasPersonalizadasDesdePlan(PlanGrafico plan) {
+        if (plan.filasPersonalizadas == null) {
+            return;
+        }
+
+        for (PlanGrafico.FilaPersonalizadaDTO dto : plan.filasPersonalizadas) {
+            filasPersonalizadas.add(
+                    new FilaPlanGraficoPersonalizada(
+                            dto.id,
+                            dto.nombre,
+                            dto.colorTitulo,
+                            dto.editable
+                    )
+            );
+        }
+    }
+
+    private void cargarPeriodosDesdePlan(PlanGrafico plan) {
+        for (PlanGrafico.PeriodoDTO dto : plan.periodos) {
+            TipoPeriodoPlanificacion tipo = TipoPeriodoPlanificacion.valueOf(dto.tipo);
+
+            periodosPlanificados.add(
+                    crearPeriodoManual(
+                            tipo,
+                            dto.semanaInicio,
+                            dto.semanaFin,
+                            dto.porcentaje
+                    )
+            );
+        }
+
+        periodosPlanificados.sort(Comparator.comparingInt(PeriodoPlanificado::getSemanaInicio));
+    }
+
+    private void cargarMesociclosDesdePlan(PlanGrafico plan) {
+        for (PlanGrafico.MesocicloDTO dto : plan.mesociclos) {
+            TipoMesociclo tipo = TipoMesociclo.valueOf(dto.tipo);
+
+            mesociclosPlanificados.add(
+                    crearMesociclo(
+                            tipo,
+                            dto.nombre,
+                            dto.semanaInicio,
+                            dto.duracion,
+                            dto.color
+                    )
+            );
+        }
+
+        mesociclosPlanificados.sort(Comparator.comparingInt(MesocicloPlanificado::getSemanaInicio));
+    }
+
+    private void cargarMicrociclosDesdePlan(PlanGrafico plan) {
+        for (PlanGrafico.MicrocicloDTO dto : plan.microciclos) {
+            TipoMicrociclo tipo = TipoMicrociclo.valueOf(dto.tipo);
+
+            microciclosPlanificados.add(
+                    crearMicrocicloGrafico(
+                            tipo,
+                            dto.nombre,
+                            dto.semanaInicio,
+                            dto.duracion,
+                            dto.color
+                    )
+            );
+        }
+
+        microciclosPlanificados.sort(Comparator.comparingInt(MicrocicloGraficoPlanificado::getSemanaInicio));
+    }
+
+    private void cargarSesionesDesdePlan(PlanGrafico plan) {
+        for (PlanGrafico.SesionDTO dto : plan.sesiones) {
+            sesionesMicrociclo.add(
+                    new SesionMicrocicloPlanificada(
+                            dto.semana,
+                            DayOfWeek.valueOf(dto.diaSemana),
+                            LocalTime.parse(dto.horaInicio),
+                            dto.duracionMinutos,
+                            dto.extra,
+                            dto.observaciones
+                    )
+            );
+        }
+    }
+
+    private void cargarCompetenciasDesdePlan(PlanGrafico plan) {
+        if (configuracionPlanificacion == null) {
+            configuracionPlanificacion = ConfiguracionPlanificacionStore.getConfiguracionActiva();
+        }
+
+        configuracionPlanificacion.getCompetencias().clear();
+
+        for (PlanGrafico.CompetenciaDTO dto : plan.competencias) {
+            configuracionPlanificacion.getCompetencias().add(
+                    new CompetenciaPlanificada(
+                            dto.nombre,
+                            TipoCompetencia.valueOf(dto.tipoCompetencia),
+                            LocalDate.parse(dto.fechaInicio),
+                            LocalDate.parse(dto.fechaFin),
+                            dto.fase,
+                            dto.sede,
+                            dto.objetivo,
+                            dto.prioridad,
+                            dto.competenciaClave,
+                            dto.observaciones
+                    )
+            );
+        }
+
+        ConfiguracionPlanificacionStore.setConfiguracionActiva(configuracionPlanificacion);
+    }
+
+    private void cargarCeldasDesdePlan(PlanGrafico plan) {
+        for (PlanGrafico.CeldaDTO dto : plan.celdas) {
+            String key = dto.fila + "-" + dto.semana;
+
+            celdasPlan.put(
+                    key,
+                    new CeldaPlanGrafico(
+                            dto.fila,
+                            dto.semana,
+                            dto.valor,
+                            dto.colorHex,
+                            dto.editable
+                    )
+            );
+        }
+    }
+
+    private void cargarPlanGraficoDesdeArchivo(Path archivoPlanGrafico) {
+        try (InputStream in = Files.newInputStream(archivoPlanGrafico)) {
+            Properties props = new Properties();
+            props.load(in);
+
+            fechaInicioPlan = LocalDate.parse(props.getProperty("fechaInicio"));
+            fechaFinPlan = LocalDate.parse(props.getProperty("fechaFin"));
+            tipoPeriodizacionActual = TipoPeriodizacion.valueOf(props.getProperty("tipoPeriodizacion"));
+            deporteActual = props.getProperty("deporte", "Fútbol");
+            modoPeriodosManual = Boolean.parseBoolean(props.getProperty("modoPeriodosManual", "false"));
+
+            dpFechaInicio.setValue(fechaInicioPlan);
+            dpFechaFin.setValue(fechaFinPlan);
+            cbTipoPeriodizacion.setValue(tipoPeriodizacionActual);
+
+            generarSemanasPlanificacion();
+
+            periodosPlanificados.clear();
+
+            int totalPeriodos = Integer.parseInt(props.getProperty("periodos.total", "0"));
+
+            for (int i = 0; i < totalPeriodos; i++) {
+                String base = "periodos." + i + ".";
+
+                TipoPeriodoPlanificacion tipo = TipoPeriodoPlanificacion.valueOf(
+                        props.getProperty(base + "tipo")
+                );
+
+                int semanaInicio = Integer.parseInt(props.getProperty(base + "semanaInicio"));
+                int semanaFin = Integer.parseInt(props.getProperty(base + "semanaFin"));
+                double porcentaje = Double.parseDouble(props.getProperty(base + "porcentaje", "0"));
+
+                periodosPlanificados.add(
+                        crearPeriodoManual(
+                                tipo,
+                                semanaInicio,
+                                semanaFin,
+                                porcentaje
+                        )
+                );
+            }
+
+            mesociclosPlanificados.clear();
+
+            int totalMesociclos = Integer.parseInt(props.getProperty("mesociclos.total", "0"));
+
+            for (int i = 0; i < totalMesociclos; i++) {
+                String base = "mesociclos." + i + ".";
+
+                TipoMesociclo tipo = TipoMesociclo.valueOf(
+                        props.getProperty(base + "tipo")
+                );
+
+                String nombre = props.getProperty(base + "nombre", tipo.name());
+                int semanaInicio = Integer.parseInt(props.getProperty(base + "semanaInicio"));
+                int duracion = Integer.parseInt(props.getProperty(base + "duracion"));
+                String color = props.getProperty(base + "color", colorMesociclo(tipo));
+
+                mesociclosPlanificados.add(
+                        crearMesociclo(
+                                tipo,
+                                nombre,
+                                semanaInicio,
+                                duracion,
+                                color
+                        )
+                );
+            }
+
+            microciclosPlanificados.clear();
+
+            int totalMicrociclos = Integer.parseInt(props.getProperty("microciclos.total", "0"));
+
+            for (int i = 0; i < totalMicrociclos; i++) {
+                String base = "microciclos." + i + ".";
+
+                TipoMicrociclo tipo = TipoMicrociclo.valueOf(
+                        props.getProperty(base + "tipo")
+                );
+
+                String nombre = props.getProperty(base + "nombre", abreviaturaMicrociclo(tipo));
+                int semanaInicio = Integer.parseInt(props.getProperty(base + "semanaInicio"));
+                int duracion = Integer.parseInt(props.getProperty(base + "duracion"));
+                String color = props.getProperty(base + "color", colorMicrociclo(tipo));
+
+                microciclosPlanificados.add(
+                        crearMicrocicloGrafico(
+                                tipo,
+                                nombre,
+                                semanaInicio,
+                                duracion,
+                                color
+                        )
+                );
+            }
+
+            actualizarFechasPeriodos();
+            actualizarFechasMesociclos();
+            actualizarFechasMicrociclos();
+
+            mesociclosInicializados = !mesociclosPlanificados.isEmpty();
+            microciclosInicializados = !microciclosPlanificados.isEmpty();
+
+            etapasPlanificadas = etapasService.generarEtapas(
+                    tipoPeriodizacionActual,
+                    periodosPlanificados,
+                    semanasPlan
+            );
+
+            limpiarSeleccionCelda();
+            construirPlanGrafico();
+
+            mostrarInformacion(
+                    "Plan cargado",
+                    "El plan gráfico seleccionado se cargó correctamente."
+            );
+
+        } catch (Exception ex) {
+            mostrarAlerta("Error al cargar", "No se pudo cargar el plan gráfico seleccionado.");
+            ex.printStackTrace();
+        }
+    }
+
+    private void mostrarInformacion(String titulo, String mensaje) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(titulo);
+        alert.setHeaderText(mensaje);
+        alert.showAndWait();
     }
 
     private void inicializarMicrociclosSiEsNecesario() {
@@ -1113,47 +1725,64 @@ public class PlanGraficoView extends Application {
         }
 
         if (dpFechaFin.getValue().isBefore(dpFechaInicio.getValue())) {
-            Alert alert = new Alert(Alert.AlertType.WARNING);
-            alert.setTitle("Fechas inválidas");
-            alert.setHeaderText("La fecha final no puede ser anterior a la fecha inicial.");
-            alert.showAndWait();
+            mostrarAlerta("Fechas inválidas", "La fecha final no puede ser anterior a la fecha inicial.");
             return;
         }
 
         fechaInicioPlan = dpFechaInicio.getValue();
         fechaFinPlan = dpFechaFin.getValue();
 
-        modoPeriodosManual = false;
-
-
         generarSemanasPlanificacion();
 
-        if (!modoPeriodosManual) {
+        if (periodosPlanificados == null || periodosPlanificados.isEmpty()) {
             periodosPlanificados = periodizacionService.generarPeriodos(
                     semanasPlan,
                     tipoPeriodizacionActual,
                     deporteActual
             );
+            modoPeriodosManual = false;
+        } else {
+            modoPeriodosManual = true;
+            actualizarFechasPeriodos();
         }
 
-        etapasPlanificadas = etapasService.generarEtapas(
-                tipoPeriodizacionActual,
-                periodosPlanificados,
-                semanasPlan
-        );
+        if (etapasPlanificadas == null || etapasPlanificadas.isEmpty()) {
+            etapasPlanificadas = etapasService.generarEtapas(
+                    tipoPeriodizacionActual,
+                    periodosPlanificados,
+                    semanasPlan
+            );
+        }
 
-        mesociclosInicializados = false;
-        mesociclosPlanificados.clear();
+        if (!mesociclosPlanificados.isEmpty()) {
+            actualizarFechasMesociclos();
+            mesociclosInicializados = true;
+        }
 
-        microciclosInicializados = false;
-        microciclosPlanificados.clear();
+        if (!microciclosPlanificados.isEmpty()) {
+            actualizarFechasMicrociclos();
+            microciclosInicializados = true;
+        }
 
-        sesionesInicializadas = false;
-        sesionesMicrociclo.clear();
+        sesionesInicializadas = !sesionesMicrociclo.isEmpty();
 
         limpiarSeleccionCelda();
-
         construirPlanGrafico();
+    }
+
+    private void actualizarFechasPeriodos() {
+        for (PeriodoPlanificado periodo : periodosPlanificados) {
+            int semanaInicio = Math.max(1, periodo.getSemanaInicio());
+            int semanaFin = Math.min(semanasPlan.size(), periodo.getSemanaFin());
+
+            if (semanaInicio <= semanaFin) {
+                SemanaPlanificacion primera = semanasPlan.get(semanaInicio - 1);
+                SemanaPlanificacion ultima = semanasPlan.get(semanaFin - 1);
+
+                periodo.setFechaInicio(primera.getFechaInicio());
+                periodo.setFechaFin(ultima.getFechaFin());
+            }
+        }
     }
 
     private List<PeriodoPlanificado> generarPeriodosPorPorcentaje(double porcentajePreparatorio,
@@ -1463,11 +2092,207 @@ public class PlanGraficoView extends Application {
         filaNumerica(row++, "CARGA PLAN. (MIN x RPE)", new int[]{2700, 2880, 3240, 2160, 2700, 3240, 3780, 2160, 2700, 3240, 1800, 1260, 720});
         filaNumerica(row++, "CARGA REAL (MIN x RPE)", new int[]{2520, 2880, 3090, 1920, 2700, 2460, 2850, 2520, 2990, 3090, 2880, 0, 0});
 
-        filaBarras(row++, "PREP. FÍSICA", "#276ef1", new int[]{20, 40, 60, 30, 50, 80, 95, 50, 70, 90, 75, 35, 20});
+        filaNumerica(row++, "PREP. FÍSICA", generarValores(totalSemanas, 0));
+        filaNumerica(row++, "AERÓBICA", generarValores(totalSemanas, 0));
+        filaNumerica(row++, "FUERZA", generarValores(totalSemanas, 0));
+        filaNumerica(row++, "PREP. TÉCNICO-TÁCTICA", generarValores(totalSemanas, 0));
+        filaNumerica(row++, "COMPLEJOS I-II", generarValores(totalSemanas, 0));
+
         /*filaBarras(row++, "PREP. TÉCNICO-TÁCTICA", "#1f9d46", new int[]{30, 45, 55, 60, 70, 75, 85, 65, 75, 80, 85, 55, 25});*/
         filaNumerica(row++, "PREP. TÉCNICO-TÁCTICA", generarValores(totalSemanas, 30, 45, 55, 60, 70, 75, 85));
         filaBarras(row++, "PREP. PSICOLÓGICA", "#8e44ad", new int[]{10, 20, 30, 35, 50, 55, 60, 45, 55, 60, 50, 25, 15});
         filaBarras(row++, "PREP. TEÓRICA", "#d49a00", new int[]{15, 25, 40, 45, 55, 65, 70, 55, 70, 75, 45, 25, 10});
+
+        pintarFilasPersonalizadas(row);
+    }
+
+    private void pintarFilasPersonalizadas(int rowInicial) {
+        int row = rowInicial;
+
+        for (FilaPlanGraficoPersonalizada fila : filasPersonalizadas) {
+            pintarFilaPersonalizada(row++, fila);
+        }
+    }
+
+    private void pintarFilaPersonalizada(int row, FilaPlanGraficoPersonalizada fila) {
+        Label titulo = celdaTitulo(fila.getNombre());
+        titulo.setStyle(estiloCelda()
+                + "-fx-font-weight: bold;"
+                + "-fx-text-fill: #123456;"
+                + "-fx-background-color: " + fila.getColorTitulo() + ";"
+        );
+
+        titulo.setOnMouseClicked(e -> {
+            if (e.getClickCount() == 2) {
+                abrirEditorFilaPersonalizada(fila);
+            }
+        });
+
+        Tooltip.install(titulo, new Tooltip("Doble clic para editar esta fila"));
+
+        grid.add(titulo, 0, row);
+
+        for (int semana = 1; semana <= semanasPlan.size(); semana++) {
+            grid.add(
+                    celdaEditable(
+                            fila.getClaveFila(),
+                            semana,
+                            "",
+                            "#ffffff",
+                            82,
+                            34
+                    ),
+                    semana,
+                    row
+            );
+        }
+    }
+
+    private void abrirGestorFilasPersonalizadas() {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Filas del plan gráfico");
+        dialog.setHeaderText("Agrega, edita, elimina o reordena filas personalizadas");
+
+        VBox contenido = new VBox(12);
+        contenido.setPadding(new Insets(15));
+
+        TableView<FilaPlanGraficoPersonalizada> tabla = new TableView<>();
+        tabla.setEditable(true);
+        tabla.setPrefHeight(360);
+
+        TableColumn<FilaPlanGraficoPersonalizada, String> colNombre = new TableColumn<>("Nombre");
+        colNombre.setCellValueFactory(data ->
+                new javafx.beans.property.SimpleStringProperty(data.getValue().getNombre()));
+        colNombre.setCellFactory(TextFieldTableCell.forTableColumn());
+        colNombre.setOnEditCommit(e -> e.getRowValue().setNombre(e.getNewValue()));
+
+        TableColumn<FilaPlanGraficoPersonalizada, String> colColor = new TableColumn<>("Color título");
+        colColor.setCellValueFactory(data ->
+                new javafx.beans.property.SimpleStringProperty(data.getValue().getColorTitulo()));
+        colColor.setCellFactory(TextFieldTableCell.forTableColumn());
+        colColor.setOnEditCommit(e -> e.getRowValue().setColorTitulo(e.getNewValue()));
+
+        tabla.getColumns().addAll(colNombre, colColor);
+        tabla.getItems().setAll(filasPersonalizadas);
+
+        Button btnAgregar = botonNormal("Agregar fila");
+        btnAgregar.setOnAction(e -> {
+            FilaPlanGraficoPersonalizada nueva = new FilaPlanGraficoPersonalizada("Nueva fila");
+            filasPersonalizadas.add(nueva);
+            tabla.getItems().setAll(filasPersonalizadas);
+            tabla.getSelectionModel().select(nueva);
+        });
+
+        Button btnEliminar = botonNormal("Eliminar fila");
+        btnEliminar.setOnAction(e -> {
+            FilaPlanGraficoPersonalizada seleccionada = tabla.getSelectionModel().getSelectedItem();
+
+            if (seleccionada == null) {
+                mostrarAlerta("Sin selección", "Selecciona una fila para eliminar.");
+                return;
+            }
+
+            Alert confirmar = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmar.setTitle("Eliminar fila");
+            confirmar.setHeaderText("¿Deseas eliminar esta fila?");
+            confirmar.setContentText("Se eliminarán también los valores capturados en sus semanas.");
+
+            Optional<ButtonType> respuesta = confirmar.showAndWait();
+
+            if (respuesta.isPresent() && respuesta.get() == ButtonType.OK) {
+                filasPersonalizadas.remove(seleccionada);
+                eliminarCeldasFilaPersonalizada(seleccionada);
+                tabla.getItems().setAll(filasPersonalizadas);
+            }
+        });
+
+        Button btnSubir = botonNormal("Subir");
+        btnSubir.setOnAction(e -> moverFilaPersonalizada(tabla, -1));
+
+        Button btnBajar = botonNormal("Bajar");
+        btnBajar.setOnAction(e -> moverFilaPersonalizada(tabla, 1));
+
+        HBox acciones = new HBox(10, btnAgregar, btnEliminar, btnSubir, btnBajar);
+
+        Label nota = new Label("Puedes editar el nombre directamente en la tabla. El color debe escribirse en formato hexadecimal, por ejemplo #ffffff.");
+        nota.setStyle("-fx-text-fill: #5c6b7a;");
+
+        contenido.getChildren().addAll(tabla, acciones, nota);
+
+        dialog.getDialogPane().setContent(contenido);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        dialog.showAndWait().ifPresent(respuesta -> {
+            if (respuesta == ButtonType.OK) {
+                limpiarSeleccionCelda();
+                construirPlanGrafico();
+            }
+        });
+    }
+
+    private void abrirEditorFilaPersonalizada(FilaPlanGraficoPersonalizada fila) {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Editar fila");
+        dialog.setHeaderText("Modificar fila personalizada");
+
+        GridPane form = new GridPane();
+        form.setHgap(12);
+        form.setVgap(12);
+        form.setPadding(new Insets(20));
+
+        TextField txtNombre = new TextField(fila.getNombre());
+        ColorPicker cpColor = new ColorPicker(Color.web(fila.getColorTitulo()));
+
+        form.add(new Label("Nombre:"), 0, 0);
+        form.add(txtNombre, 1, 0);
+
+        form.add(new Label("Color título:"), 0, 1);
+        form.add(cpColor, 1, 1);
+
+        dialog.getDialogPane().setContent(form);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        dialog.showAndWait().ifPresent(respuesta -> {
+            if (respuesta == ButtonType.OK) {
+                fila.setNombre(txtNombre.getText());
+                fila.setColorTitulo(toHex(cpColor.getValue()));
+                construirPlanGrafico();
+            }
+        });
+    }
+
+    private void moverFilaPersonalizada(TableView<FilaPlanGraficoPersonalizada> tabla, int direccion) {
+        FilaPlanGraficoPersonalizada seleccionada = tabla.getSelectionModel().getSelectedItem();
+
+        if (seleccionada == null) {
+            mostrarAlerta("Sin selección", "Selecciona una fila para mover.");
+            return;
+        }
+
+        int indexActual = filasPersonalizadas.indexOf(seleccionada);
+        int nuevoIndex = indexActual + direccion;
+
+        if (nuevoIndex < 0 || nuevoIndex >= filasPersonalizadas.size()) {
+            return;
+        }
+
+        Collections.swap(filasPersonalizadas, indexActual, nuevoIndex);
+        tabla.getItems().setAll(filasPersonalizadas);
+        tabla.getSelectionModel().select(seleccionada);
+    }
+
+    private void eliminarCeldasFilaPersonalizada(FilaPlanGraficoPersonalizada fila) {
+        String claveFila = fila.getClaveFila();
+
+        List<String> clavesAEliminar = celdasPlan.keySet()
+                .stream()
+                .filter(key -> key.startsWith(claveFila + "-"))
+                .toList();
+
+        for (String key : clavesAEliminar) {
+            celdasPlan.remove(key);
+            labelsPlan.remove(key);
+        }
     }
 
     private void filaPeriodosEditables(int row) {
@@ -2383,33 +3208,937 @@ public class PlanGraficoView extends Application {
 
         return Math.min(100, valor);
     }
+
     private void filaMesociclosCalculados(int row) {
         grid.add(celdaTitulo("MESOCICLO"), 0, row);
 
         inicializarMesociclosSiEsNecesario();
 
+        int semana = 1;
+
+        while (semana <= semanasPlan.size()) {
+            MesocicloPlanificado mesociclo = buscarMesocicloPorSemanaInicio(semana);
+
+            if (mesociclo != null) {
+                Label celda = celdaEditable(
+                        "MESOCICLO",
+                        mesociclo.getSemanaInicio(),
+                        mesociclo.getNombre() + "\n" + mesociclo.getDuracionSemanas() + " sem.",
+                        mesociclo.getColorHex(),
+                        mesociclo.getDuracionSemanas() * 82,
+                        38
+                );
+
+                celda.setStyle(celda.getStyle()
+                        + "-fx-font-weight: bold;"
+                        + "-fx-font-size: 11px;"
+                        + "-fx-cursor: hand;"
+                );
+
+                Tooltip.install(celda, new Tooltip(
+                        "Doble clic para editar o eliminar mesociclo\n"
+                                + "Tipo: " + mesociclo.getTipoMesociclo()
+                                + "\nSemana inicio: " + mesociclo.getSemanaInicio()
+                                + "\nSemana fin: " + mesociclo.getSemanaFin()
+                                + "\nObjetivo: " + mesociclo.getObjetivo()
+                                + "\nCapacidades: " + mesociclo.getCapacidadesPrioritarias()
+                ));
+
+                celda.setOnMouseClicked(event -> {
+                    if (event.getClickCount() == 2) {
+                        abrirEditorMesocicloDesdeBloque(mesociclo);
+                    }
+                });
+
+                grid.add(celda, mesociclo.getSemanaInicio(), row, mesociclo.getDuracionSemanas(), 1);
+
+                semana = mesociclo.getSemanaFin() + 1;
+            } else {
+                int semanaDisponible = semana;
+                grid.add(celdaMesocicloDisponible(semanaDisponible), semanaDisponible, row);
+                semana++;
+            }
+        }
+    }
+
+    private MesocicloPlanificado buscarMesocicloPorSemanaInicio(int semanaInicio) {
         for (MesocicloPlanificado mesociclo : mesociclosPlanificados) {
-            grid.add(
-                    celdaEditable(
-                            "MESOCICLO",
-                            mesociclo.getSemanaInicio(),
-                            mesociclo.getNombre() + "\n" + mesociclo.getDuracionSemanas() + " sem.",
-                            mesociclo.getColorHex(),
-                            mesociclo.getDuracionSemanas() * 82,
-                            38
-                    ),
-                    mesociclo.getSemanaInicio(),
-                    row,
-                    mesociclo.getDuracionSemanas(),
-                    1
+            if (mesociclo.getSemanaInicio() == semanaInicio) {
+                return mesociclo;
+            }
+        }
+
+        return null;
+    }
+
+    private Label celdaMesocicloDisponible(int semana) {
+        Label celda = new Label("+");
+        celda.setAlignment(Pos.CENTER);
+        celda.setMinSize(82, 38);
+        celda.setPrefSize(82, 38);
+        celda.setMaxSize(82, 38);
+
+        String normal = """
+            -fx-background-color: #f8fafc;
+            -fx-border-color: #94a3b8;
+            -fx-border-style: dashed;
+            -fx-border-width: 1.2;
+            -fx-text-fill: #08294a;
+            -fx-font-size: 14px;
+            -fx-font-weight: bold;
+            -fx-cursor: hand;
+            """;
+
+        String hover = """
+            -fx-background-color: #dbeafe;
+            -fx-border-color: #0875c9;
+            -fx-border-style: dashed;
+            -fx-border-width: 1.6;
+            -fx-text-fill: #0875c9;
+            -fx-font-size: 16px;
+            -fx-font-weight: bold;
+            -fx-cursor: hand;
+            """;
+
+        celda.setStyle(normal);
+
+        Tooltip.install(celda, new Tooltip("Doble clic para agregar mesociclo en la semana " + semana));
+
+        celda.setOnMouseEntered(e -> celda.setStyle(hover));
+        celda.setOnMouseExited(e -> celda.setStyle(normal));
+
+        celda.setOnMouseClicked(e -> {
+            if (e.getClickCount() == 2) {
+                abrirEditorNuevoMesocicloDesdeSemana(semana);
+            }
+        });
+
+        return celda;
+    }
+
+    private void abrirEditorMesocicloDesdeBloque(MesocicloPlanificado mesocicloOriginal) {
+        Dialog<MesocicloPlanificado> dialog = new Dialog<>();
+        dialog.setTitle("Editor de mesociclo");
+        dialog.setHeaderText("Configurar mesociclo, microciclos, cargas y distribución de tiempos");
+
+        ButtonType btnGuardar = new ButtonType("Guardar cambios", ButtonBar.ButtonData.OK_DONE);
+        ButtonType btnEliminar = new ButtonType("Eliminar mesociclo", ButtonBar.ButtonData.LEFT);
+        ButtonType btnCancelar = new ButtonType("Cancelar", ButtonBar.ButtonData.CANCEL_CLOSE);
+
+        dialog.getDialogPane().getButtonTypes().addAll(btnGuardar, btnEliminar, btnCancelar);
+
+        ComboBox<TipoMesociclo> cbTipo = new ComboBox<>();
+        cbTipo.getItems().setAll(TipoMesociclo.values());
+        cbTipo.setValue(mesocicloOriginal.getTipoMesociclo());
+
+        TextField txtNombre = new TextField(mesocicloOriginal.getNombre());
+
+        Spinner<Integer> spSemanaInicio = new Spinner<>(1, semanasPlan.size(), mesocicloOriginal.getSemanaInicio());
+        Spinner<Integer> spDuracion = new Spinner<>(1, semanasPlan.size(), mesocicloOriginal.getDuracionSemanas());
+
+        spSemanaInicio.setEditable(true);
+        spDuracion.setEditable(true);
+
+        ColorPicker cpColor = new ColorPicker(Color.web(mesocicloOriginal.getColorHex()));
+
+        TextArea txtObjetivo = new TextArea(mesocicloOriginal.getObjetivo());
+        txtObjetivo.setPrefRowCount(2);
+        txtObjetivo.setWrapText(true);
+
+        TextField txtCapacidades = new TextField(mesocicloOriginal.getCapacidadesPrioritarias());
+
+        Spinner<Double> spPrepFisica = new Spinner<>(0.0, 100.0, mesocicloOriginal.getPorcentajePreparacionFisica(), 1.0);
+        Spinner<Double> spPrepTecTac = new Spinner<>(0.0, 100.0, mesocicloOriginal.getPorcentajePreparacionTecnicoTactica(), 1.0);
+        Spinner<Double> spAerobico = new Spinner<>(0.0, 100.0, mesocicloOriginal.getPorcentajeAerobico(), 1.0);
+        Spinner<Double> spFuerza = new Spinner<>(0.0, 100.0, mesocicloOriginal.getPorcentajeFuerza(), 1.0);
+        Spinner<Double> spComplejos = new Spinner<>(0.0, 100.0, mesocicloOriginal.getPorcentajeComplejos(), 1.0);
+
+        spPrepFisica.setEditable(true);
+        spPrepTecTac.setEditable(true);
+        spAerobico.setEditable(true);
+        spFuerza.setEditable(true);
+        spComplejos.setEditable(true);
+
+        List<MicrocicloMesocicloConfig> configuracionTemporal = copiarConfiguracionMicrociclos(mesocicloOriginal);
+        VBox tablaMicrociclos = new VBox(6);
+        VBox resultados = new VBox(6);
+
+        Runnable refrescarTodo = () -> {
+            ajustarConfiguracionTemporal(configuracionTemporal, spDuracion.getValue());
+            construirTablaMicrociclosMesociclo(tablaMicrociclos, configuracionTemporal, resultados,
+                    spPrepFisica, spPrepTecTac, spAerobico, spFuerza, spComplejos);
+            actualizarResultadosMesociclo(resultados, configuracionTemporal,
+                    spPrepFisica.getValue(), spPrepTecTac.getValue(), spAerobico.getValue(), spFuerza.getValue(), spComplejos.getValue());
+        };
+
+        spDuracion.valueProperty().addListener((obs, oldVal, newVal) -> refrescarTodo.run());
+        spPrepFisica.valueProperty().addListener((obs, oldVal, newVal) -> actualizarResultadosMesociclo(resultados, configuracionTemporal,
+                spPrepFisica.getValue(), spPrepTecTac.getValue(), spAerobico.getValue(), spFuerza.getValue(), spComplejos.getValue()));
+        spPrepTecTac.valueProperty().addListener((obs, oldVal, newVal) -> actualizarResultadosMesociclo(resultados, configuracionTemporal,
+                spPrepFisica.getValue(), spPrepTecTac.getValue(), spAerobico.getValue(), spFuerza.getValue(), spComplejos.getValue()));
+        spAerobico.valueProperty().addListener((obs, oldVal, newVal) -> actualizarResultadosMesociclo(resultados, configuracionTemporal,
+                spPrepFisica.getValue(), spPrepTecTac.getValue(), spAerobico.getValue(), spFuerza.getValue(), spComplejos.getValue()));
+        spFuerza.valueProperty().addListener((obs, oldVal, newVal) -> actualizarResultadosMesociclo(resultados, configuracionTemporal,
+                spPrepFisica.getValue(), spPrepTecTac.getValue(), spAerobico.getValue(), spFuerza.getValue(), spComplejos.getValue()));
+        spComplejos.valueProperty().addListener((obs, oldVal, newVal) -> actualizarResultadosMesociclo(resultados, configuracionTemporal,
+                spPrepFisica.getValue(), spPrepTecTac.getValue(), spAerobico.getValue(), spFuerza.getValue(), spComplejos.getValue()));
+
+        cbTipo.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                txtNombre.setText(nombreMesociclo(newVal));
+                cpColor.setValue(Color.web(colorMesociclo(newVal)));
+            }
+        });
+
+        GridPane datosGenerales = new GridPane();
+        datosGenerales.setHgap(12);
+        datosGenerales.setVgap(12);
+        datosGenerales.setPadding(new Insets(15));
+
+        datosGenerales.add(new Label("Tipo:"), 0, 0);
+        datosGenerales.add(cbTipo, 1, 0);
+        datosGenerales.add(new Label("Nombre:"), 0, 1);
+        datosGenerales.add(txtNombre, 1, 1);
+        datosGenerales.add(new Label("Semana inicio:"), 0, 2);
+        datosGenerales.add(spSemanaInicio, 1, 2);
+        datosGenerales.add(new Label("Duración:"), 0, 3);
+        datosGenerales.add(spDuracion, 1, 3);
+        datosGenerales.add(new Label("Color:"), 0, 4);
+        datosGenerales.add(cpColor, 1, 4);
+        datosGenerales.add(new Label("Objetivo:"), 0, 5);
+        datosGenerales.add(txtObjetivo, 1, 5);
+        datosGenerales.add(new Label("Capacidades:"), 0, 6);
+        datosGenerales.add(txtCapacidades, 1, 6);
+
+        GridPane distribucion = new GridPane();
+        distribucion.setHgap(12);
+        distribucion.setVgap(12);
+        distribucion.setPadding(new Insets(15));
+
+        distribucion.add(new Label("Preparación física %:"), 0, 0);
+        distribucion.add(spPrepFisica, 1, 0);
+        distribucion.add(new Label("Preparación técnico-táctica %:"), 0, 1);
+        distribucion.add(spPrepTecTac, 1, 1);
+        distribucion.add(new Label("Aeróbico % dentro de P.F.:"), 0, 2);
+        distribucion.add(spAerobico, 1, 2);
+        distribucion.add(new Label("Fuerza % dentro de P.F.:"), 0, 3);
+        distribucion.add(spFuerza, 1, 3);
+        distribucion.add(new Label("Complejos I-II % dentro de Tec-Tac:"), 0, 4);
+        distribucion.add(spComplejos, 1, 4);
+
+        TabPane tabs = new TabPane();
+
+        Tab tabDatos = new Tab("1. Datos generales", datosGenerales);
+        Tab tabMicro = new Tab("2. Microciclos y % carga", new ScrollPane(tablaMicrociclos));
+        Tab tabDistribucion = new Tab("3. Distribución", distribucion);
+        Tab tabResultados = new Tab("4. Resultado calculado", new ScrollPane(resultados));
+
+        tabDatos.setClosable(false);
+        tabMicro.setClosable(false);
+        tabDistribucion.setClosable(false);
+        tabResultados.setClosable(false);
+
+        tabs.getTabs().addAll(tabDatos, tabMicro, tabDistribucion, tabResultados);
+        tabs.setPrefWidth(980);
+        tabs.setPrefHeight(560);
+
+        dialog.getDialogPane().setContent(tabs);
+
+        refrescarTodo.run();
+
+        final boolean[] eliminar = {false};
+
+        Button btnEliminarNode = (Button) dialog.getDialogPane().lookupButton(btnEliminar);
+        btnEliminarNode.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+            event.consume();
+
+            Alert confirmacion = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmacion.setTitle("Eliminar mesociclo");
+            confirmacion.setHeaderText("¿Deseas eliminar este mesociclo?");
+            confirmacion.setContentText("También podrás eliminar los microciclos hijos si lo confirmas después.");
+
+            Optional<ButtonType> respuesta = confirmacion.showAndWait();
+
+            if (respuesta.isPresent() && respuesta.get() == ButtonType.OK) {
+                eliminar[0] = true;
+                dialog.setResult(null);
+                dialog.close();
+            }
+        });
+
+        dialog.setResultConverter(button -> {
+            if (button == btnGuardar) {
+                int semanaInicio = spSemanaInicio.getValue();
+                int duracion = spDuracion.getValue();
+                int semanaFin = semanaInicio + duracion - 1;
+
+                if (semanaFin > semanasPlan.size()) {
+                    mostrarAlerta("Mesociclo fuera de rango", "La duración excede el total de semanas del plan.");
+                    return null;
+                }
+
+                if (existeCruceMesociclo(mesocicloOriginal, semanaInicio, semanaFin)) {
+                    mostrarAlerta("Cruce de mesociclos", "El mesociclo se cruza con otro mesociclo.");
+                    return null;
+                }
+
+                if (Math.abs((spPrepFisica.getValue() + spPrepTecTac.getValue()) - 100.0) > 0.01) {
+                    mostrarAlerta("Distribución incorrecta", "Preparación física y técnico-táctica deben sumar 100 %.");
+                    return null;
+                }
+
+                if (Math.abs((spAerobico.getValue() + spFuerza.getValue()) - 100.0) > 0.01) {
+                    mostrarAlerta("Distribución incorrecta", "Aeróbico y fuerza deben sumar 100 %.");
+                    return null;
+                }
+
+                MesocicloPlanificado nuevo = crearMesociclo(
+                        cbTipo.getValue(),
+                        txtNombre.getText(),
+                        semanaInicio,
+                        duracion,
+                        toHex(cpColor.getValue())
+                );
+
+                nuevo.setObjetivo(txtObjetivo.getText());
+                nuevo.setCapacidadesPrioritarias(txtCapacidades.getText());
+                nuevo.setPorcentajePreparacionFisica(spPrepFisica.getValue());
+                nuevo.setPorcentajePreparacionTecnicoTactica(spPrepTecTac.getValue());
+                nuevo.setPorcentajeAerobico(spAerobico.getValue());
+                nuevo.setPorcentajeFuerza(spFuerza.getValue());
+                nuevo.setPorcentajeComplejos(spComplejos.getValue());
+                nuevo.setConfiguracionMicrociclos(configuracionTemporal);
+
+                return nuevo;
+            }
+
+            return null;
+        });
+
+        Optional<MesocicloPlanificado> resultado = dialog.showAndWait();
+
+        if (eliminar[0]) {
+            eliminarMesociclo(mesocicloOriginal);
+            return;
+        }
+
+        resultado.ifPresent(nuevo -> {
+            reemplazarMesociclo(mesocicloOriginal, nuevo);
+            aplicarDistribucionMesocicloEnPlan(nuevo);
+            mesociclosInicializados = true;
+            microciclosInicializados = true;
+            actualizarFechasMesociclos();
+            actualizarFechasMicrociclos();
+            limpiarSeleccionCelda();
+            construirPlanGrafico();
+        });
+    }
+
+    private List<MicrocicloMesocicloConfig> copiarConfiguracionMicrociclos(MesocicloPlanificado mesociclo) {
+        List<MicrocicloMesocicloConfig> copia = new ArrayList<>();
+
+        for (MicrocicloMesocicloConfig config : mesociclo.getConfiguracionMicrociclos()) {
+            copia.add(new MicrocicloMesocicloConfig(
+                    config.getTipoMicrociclo(),
+                    config.getPorcentajeCarga(),
+                    config.getUnidadesEntrenamientoSemana(),
+                    config.getMinutosPorUnidad()
+            ));
+        }
+
+        return copia;
+    }
+
+    private void ajustarConfiguracionTemporal(List<MicrocicloMesocicloConfig> configuracion, int duracion) {
+        while (configuracion.size() < duracion) {
+            configuracion.add(new MicrocicloMesocicloConfig(
+                    TipoMicrociclo.CARGA,
+                    70,
+                    5,
+                    120
+            ));
+        }
+
+        while (configuracion.size() > duracion) {
+            configuracion.remove(configuracion.size() - 1);
+        }
+    }
+
+    private void construirTablaMicrociclosMesociclo(VBox contenedor,
+                                                    List<MicrocicloMesocicloConfig> configuracion,
+                                                    VBox resultados,
+                                                    Spinner<Double> spPrepFisica,
+                                                    Spinner<Double> spPrepTecTac,
+                                                    Spinner<Double> spAerobico,
+                                                    Spinner<Double> spFuerza,
+                                                    Spinner<Double> spComplejos) {
+        contenedor.getChildren().clear();
+
+        GridPane tabla = new GridPane();
+        tabla.setHgap(8);
+        tabla.setVgap(8);
+        tabla.setPadding(new Insets(15));
+
+        tabla.add(new Label("Micro"), 0, 0);
+        tabla.add(new Label("Tipo"), 1, 0);
+        tabla.add(new Label("% microciclo"), 2, 0);
+        tabla.add(new Label("U.E / semana"), 3, 0);
+        tabla.add(new Label("Minutos U.E"), 4, 0);
+        tabla.add(new Label("Minutos micro"), 5, 0);
+
+        for (int i = 0; i < configuracion.size(); i++) {
+            MicrocicloMesocicloConfig config = configuracion.get(i);
+
+            Label lblMicro = new Label("Micro " + (i + 1));
+
+            ComboBox<TipoMicrociclo> cbTipo = new ComboBox<>();
+            cbTipo.getItems().setAll(TipoMicrociclo.values());
+            cbTipo.setValue(config.getTipoMicrociclo());
+
+            Spinner<Double> spPorcentaje = new Spinner<>(0.0, 100.0, config.getPorcentajeCarga(), 1.0);
+            Spinner<Integer> spUE = new Spinner<>(1, 14, config.getUnidadesEntrenamientoSemana());
+            Spinner<Integer> spMin = new Spinner<>(1, 300, config.getMinutosPorUnidad());
+
+            spPorcentaje.setEditable(true);
+            spUE.setEditable(true);
+            spMin.setEditable(true);
+
+            Label lblMinutos = new Label(String.valueOf(config.getMinutosTotalesMicrociclo()));
+
+            cbTipo.valueProperty().addListener((obs, oldVal, newVal) -> {
+                config.setTipoMicrociclo(newVal);
+                actualizarResultadosMesociclo(resultados, configuracion,
+                        spPrepFisica.getValue(), spPrepTecTac.getValue(), spAerobico.getValue(), spFuerza.getValue(), spComplejos.getValue());
+            });
+
+            spPorcentaje.valueProperty().addListener((obs, oldVal, newVal) -> {
+                config.setPorcentajeCarga(newVal);
+                actualizarResultadosMesociclo(resultados, configuracion,
+                        spPrepFisica.getValue(), spPrepTecTac.getValue(), spAerobico.getValue(), spFuerza.getValue(), spComplejos.getValue());
+            });
+
+            spUE.valueProperty().addListener((obs, oldVal, newVal) -> {
+                config.setUnidadesEntrenamientoSemana(newVal);
+                lblMinutos.setText(String.valueOf(config.getMinutosTotalesMicrociclo()));
+                actualizarResultadosMesociclo(resultados, configuracion,
+                        spPrepFisica.getValue(), spPrepTecTac.getValue(), spAerobico.getValue(), spFuerza.getValue(), spComplejos.getValue());
+            });
+
+            spMin.valueProperty().addListener((obs, oldVal, newVal) -> {
+                config.setMinutosPorUnidad(newVal);
+                lblMinutos.setText(String.valueOf(config.getMinutosTotalesMicrociclo()));
+                actualizarResultadosMesociclo(resultados, configuracion,
+                        spPrepFisica.getValue(), spPrepTecTac.getValue(), spAerobico.getValue(), spFuerza.getValue(), spComplejos.getValue());
+            });
+
+            int row = i + 1;
+
+            tabla.add(lblMicro, 0, row);
+            tabla.add(cbTipo, 1, row);
+            tabla.add(spPorcentaje, 2, row);
+            tabla.add(spUE, 3, row);
+            tabla.add(spMin, 4, row);
+            tabla.add(lblMinutos, 5, row);
+        }
+
+        contenedor.getChildren().add(tabla);
+    }
+
+    private void actualizarResultadosMesociclo(VBox contenedor,
+                                               List<MicrocicloMesocicloConfig> configuracion,
+                                               double porcentajePrepFisica,
+                                               double porcentajePrepTecTac,
+                                               double porcentajeAerobico,
+                                               double porcentajeFuerza,
+                                               double porcentajeComplejos) {
+        contenedor.getChildren().clear();
+
+        double sumaPorcentajesMicro = configuracion.stream()
+                .mapToDouble(MicrocicloMesocicloConfig::getPorcentajeCarga)
+                .sum();
+
+        int minutosTotalesBloque = configuracion.stream()
+                .mapToInt(MicrocicloMesocicloConfig::getMinutosTotalesMicrociclo)
+                .sum();
+
+        double tiempoPrepFisica = minutosTotalesBloque * (porcentajePrepFisica / 100.0);
+        double tiempoPrepTecTac = minutosTotalesBloque * (porcentajePrepTecTac / 100.0);
+
+        double coeficienteFisico = sumaPorcentajesMicro == 0 ? 0 : tiempoPrepFisica / sumaPorcentajesMicro;
+        double coeficienteTecTac = sumaPorcentajesMicro == 0 ? 0 : tiempoPrepTecTac / sumaPorcentajesMicro;
+
+        Label resumen = new Label(
+                "Minutos totales del bloque: " + minutosTotalesBloque
+                        + "\nTiempo preparación física: " + Math.round(tiempoPrepFisica)
+                        + "\nTiempo técnico-táctico: " + Math.round(tiempoPrepTecTac)
+                        + "\nSuma % microciclos: " + Math.round(sumaPorcentajesMicro)
+                        + "\nCoeficiente físico: " + redondear(coeficienteFisico)
+                        + "\nCoeficiente técnico-táctico: " + redondear(coeficienteTecTac)
+        );
+
+        resumen.setStyle("-fx-font-weight: bold; -fx-text-fill: #08294a;");
+
+        GridPane tabla = new GridPane();
+        tabla.setHgap(8);
+        tabla.setVgap(8);
+        tabla.setPadding(new Insets(15));
+
+        tabla.add(new Label("Concepto"), 0, 0);
+
+        for (int i = 0; i < configuracion.size(); i++) {
+            tabla.add(new Label("Micro " + (i + 1)), i + 1, 0);
+        }
+
+        agregarFilaResultado(tabla, 1, "% Microciclo", configuracion, c -> Math.round(c.getPorcentajeCarga()));
+        agregarFilaResultado(tabla, 2, "Minutos micro", configuracion, MicrocicloMesocicloConfig::getMinutosTotalesMicrociclo);
+
+        tabla.add(new Label("Prep. Física"), 0, 3);
+        tabla.add(new Label("Aeróbica"), 0, 4);
+        tabla.add(new Label("Fuerza"), 0, 5);
+        tabla.add(new Label("Prep. Tec-Tac"), 0, 6);
+        tabla.add(new Label("Complejos I-II"), 0, 7);
+
+        for (int i = 0; i < configuracion.size(); i++) {
+            MicrocicloMesocicloConfig config = configuracion.get(i);
+
+            double tiempoFisicoMicro = coeficienteFisico * config.getPorcentajeCarga();
+            double aerobico = tiempoFisicoMicro * (porcentajeAerobico / 100.0);
+            double fuerza = tiempoFisicoMicro * (porcentajeFuerza / 100.0);
+
+            double tiempoTecTacMicro = coeficienteTecTac * config.getPorcentajeCarga();
+            double complejos = tiempoTecTacMicro * (porcentajeComplejos / 100.0);
+
+            int col = i + 1;
+
+            tabla.add(new Label(String.valueOf(Math.round(tiempoFisicoMicro))), col, 3);
+            tabla.add(new Label(String.valueOf(Math.round(aerobico))), col, 4);
+            tabla.add(new Label(String.valueOf(Math.round(fuerza))), col, 5);
+            tabla.add(new Label(String.valueOf(Math.round(tiempoTecTacMicro))), col, 6);
+            tabla.add(new Label(String.valueOf(Math.round(complejos))), col, 7);
+        }
+
+        contenedor.getChildren().addAll(resumen, tabla);
+    }
+
+    private void agregarFilaResultado(GridPane tabla,
+                                      int row,
+                                      String titulo,
+                                      List<MicrocicloMesocicloConfig> configuracion,
+                                      java.util.function.Function<MicrocicloMesocicloConfig, Number> extractor) {
+        tabla.add(new Label(titulo), 0, row);
+
+        for (int i = 0; i < configuracion.size(); i++) {
+            tabla.add(new Label(String.valueOf(extractor.apply(configuracion.get(i)))), i + 1, row);
+        }
+    }
+
+    private double redondear(double valor) {
+        return Math.round(valor * 100.0) / 100.0;
+    }
+
+    private void aplicarDistribucionMesocicloEnPlan(MesocicloPlanificado mesociclo) {
+        microciclosPlanificados.removeIf(m ->
+                m.getSemanaInicio() <= mesociclo.getSemanaFin()
+                        && m.getSemanaFin() >= mesociclo.getSemanaInicio()
+        );
+
+        List<MicrocicloMesocicloConfig> configuracion = mesociclo.getConfiguracionMicrociclos();
+
+        double sumaPorcentajesMicro = configuracion.stream()
+                .mapToDouble(MicrocicloMesocicloConfig::getPorcentajeCarga)
+                .sum();
+
+        int minutosTotalesBloque = configuracion.stream()
+                .mapToInt(MicrocicloMesocicloConfig::getMinutosTotalesMicrociclo)
+                .sum();
+
+        double tiempoPrepFisica = minutosTotalesBloque * (mesociclo.getPorcentajePreparacionFisica() / 100.0);
+        double tiempoPrepTecTac = minutosTotalesBloque * (mesociclo.getPorcentajePreparacionTecnicoTactica() / 100.0);
+
+        double coeficienteFisico = sumaPorcentajesMicro == 0 ? 0 : tiempoPrepFisica / sumaPorcentajesMicro;
+        double coeficienteTecTac = sumaPorcentajesMicro == 0 ? 0 : tiempoPrepTecTac / sumaPorcentajesMicro;
+
+        for (int i = 0; i < configuracion.size(); i++) {
+            MicrocicloMesocicloConfig config = configuracion.get(i);
+            int semana = mesociclo.getSemanaInicio() + i;
+
+            if (semana > mesociclo.getSemanaFin() || semana > semanasPlan.size()) {
+                break;
+            }
+
+            MicrocicloGraficoPlanificado micro = crearMicrocicloGrafico(
+                    config.getTipoMicrociclo(),
+                    abreviaturaMicrociclo(config.getTipoMicrociclo()),
+                    semana,
+                    1,
+                    colorMicrociclo(config.getTipoMicrociclo())
+            );
+
+            microciclosPlanificados.add(micro);
+
+            double tiempoFisicoMicro = coeficienteFisico * config.getPorcentajeCarga();
+            double aerobico = tiempoFisicoMicro * (mesociclo.getPorcentajeAerobico() / 100.0);
+            double fuerza = tiempoFisicoMicro * (mesociclo.getPorcentajeFuerza() / 100.0);
+
+            double tiempoTecTacMicro = coeficienteTecTac * config.getPorcentajeCarga();
+            double complejos = tiempoTecTacMicro * (mesociclo.getPorcentajeComplejos() / 100.0);
+
+            asignarValorCalculado("VOLUMEN (%)", semana, String.valueOf(Math.round(config.getPorcentajeCarga())));
+            asignarValorCalculado("SESIONES", semana, String.valueOf(config.getUnidadesEntrenamientoSemana()));
+            asignarValorCalculado("MINUTOS PLAN.", semana, String.valueOf(config.getMinutosTotalesMicrociclo()));
+            asignarValorCalculado("PREP. FÍSICA", semana, String.valueOf(Math.round(tiempoFisicoMicro)));
+            asignarValorCalculado("AERÓBICA", semana, String.valueOf(Math.round(aerobico)));
+            asignarValorCalculado("FUERZA", semana, String.valueOf(Math.round(fuerza)));
+            asignarValorCalculado("PREP. TÉCNICO-TÁCTICA", semana, String.valueOf(Math.round(tiempoTecTacMicro)));
+            asignarValorCalculado("COMPLEJOS I-II", semana, String.valueOf(Math.round(complejos)));
+        }
+
+        microciclosPlanificados.sort(Comparator.comparingInt(MicrocicloGraficoPlanificado::getSemanaInicio));
+        microciclosInicializados = true;
+        actualizarFechasMicrociclos();
+    }
+
+    private void asignarValorCalculado(String fila, int semana, String valor) {
+        String key = fila + "-" + semana;
+
+        CeldaPlanGrafico celda = celdasPlan.computeIfAbsent(
+                key,
+                k -> new CeldaPlanGrafico(fila, semana, valor, "#ffffff", true)
+        );
+
+        celda.setValor(valor);
+    }
+
+
+    private void abrirEditorNuevoMesocicloDesdeSemana(int semanaDisponible) {
+        MesocicloPlanificado temporal = crearMesociclo(
+                TipoMesociclo.PERSONALIZADO,
+                "Nuevo mesociclo",
+                semanaDisponible,
+                1,
+                colorMesociclo(TipoMesociclo.PERSONALIZADO)
+        );
+
+        abrirEditorMesocicloNuevo(temporal);
+    }
+
+    private void abrirEditorMesocicloNuevo(MesocicloPlanificado mesocicloTemporal) {
+        Dialog<MesocicloPlanificado> dialog = new Dialog<>();
+        dialog.setTitle("Agregar mesociclo");
+        dialog.setHeaderText("Crear nuevo mesociclo");
+
+        ButtonType btnGuardar = new ButtonType("Agregar mesociclo", ButtonBar.ButtonData.OK_DONE);
+        ButtonType btnCancelar = new ButtonType("Cancelar", ButtonBar.ButtonData.CANCEL_CLOSE);
+
+        dialog.getDialogPane().getButtonTypes().addAll(btnGuardar, btnCancelar);
+
+        ComboBox<TipoMesociclo> cbTipo = new ComboBox<>();
+        cbTipo.getItems().setAll(TipoMesociclo.values());
+        cbTipo.setValue(mesocicloTemporal.getTipoMesociclo());
+
+        TextField txtNombre = new TextField(mesocicloTemporal.getNombre());
+
+        TextArea txtObjetivo = new TextArea();
+        txtObjetivo.setPrefRowCount(2);
+        txtObjetivo.setWrapText(true);
+
+        TextField txtCapacidades = new TextField();
+
+        Spinner<Integer> spSemanaInicio = new Spinner<>(1, semanasPlan.size(), mesocicloTemporal.getSemanaInicio());
+        Spinner<Integer> spDuracion = new Spinner<>(1, semanasPlan.size(), 1);
+
+        spSemanaInicio.setEditable(true);
+        spDuracion.setEditable(true);
+
+        ColorPicker cpColor = new ColorPicker(Color.web(mesocicloTemporal.getColorHex()));
+
+        HBox boxCiclaje = new HBox(8);
+        boxCiclaje.setAlignment(Pos.CENTER_LEFT);
+
+        List<TipoMicrociclo> ciclajeTemporal = new ArrayList<>();
+        ciclajeTemporal.add(TipoMicrociclo.CARGA);
+
+        Runnable reconstruirCiclaje = () -> construirControlesCiclaje(boxCiclaje, ciclajeTemporal, spDuracion.getValue());
+        reconstruirCiclaje.run();
+
+        spDuracion.valueProperty().addListener((obs, oldVal, newVal) -> reconstruirCiclaje.run());
+
+        cbTipo.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                txtNombre.setText(nombreMesociclo(newVal));
+                cpColor.setValue(Color.web(colorMesociclo(newVal)));
+            }
+        });
+
+        CheckBox chkGenerarMicrociclos = new CheckBox("Generar microciclos hijos según el ciclaje");
+        chkGenerarMicrociclos.setSelected(true);
+
+        GridPane form = new GridPane();
+        form.setHgap(12);
+        form.setVgap(12);
+        form.setPadding(new Insets(20));
+
+        form.add(new Label("Tipo:"), 0, 0);
+        form.add(cbTipo, 1, 0);
+
+        form.add(new Label("Nombre:"), 0, 1);
+        form.add(txtNombre, 1, 1);
+
+        form.add(new Label("Semana inicio:"), 0, 2);
+        form.add(spSemanaInicio, 1, 2);
+
+        form.add(new Label("Duración:"), 0, 3);
+        form.add(spDuracion, 1, 3);
+
+        form.add(new Label("Color:"), 0, 4);
+        form.add(cpColor, 1, 4);
+
+        form.add(new Label("Objetivo:"), 0, 5);
+        form.add(txtObjetivo, 1, 5);
+
+        form.add(new Label("Capacidades:"), 0, 6);
+        form.add(txtCapacidades, 1, 6);
+
+        form.add(new Label("Ciclaje:"), 0, 7);
+        form.add(boxCiclaje, 1, 7);
+
+        form.add(chkGenerarMicrociclos, 1, 8);
+
+        dialog.getDialogPane().setContent(form);
+
+        dialog.setResultConverter(button -> {
+            if (button == btnGuardar) {
+                int semanaInicio = spSemanaInicio.getValue();
+                int duracion = spDuracion.getValue();
+                int semanaFin = semanaInicio + duracion - 1;
+
+                if (semanaFin > semanasPlan.size()) {
+                    mostrarAlerta("Mesociclo fuera de rango", "La duración excede el total de semanas del plan.");
+                    return null;
+                }
+
+                if (existeCruceMesociclo(null, semanaInicio, semanaFin)) {
+                    mostrarAlerta("Cruce de mesociclos", "El mesociclo se cruza con otro mesociclo.");
+                    return null;
+                }
+
+                MesocicloPlanificado nuevo = crearMesociclo(
+                        cbTipo.getValue(),
+                        txtNombre.getText(),
+                        semanaInicio,
+                        duracion,
+                        toHex(cpColor.getValue())
+                );
+
+                nuevo.setObjetivo(txtObjetivo.getText());
+                nuevo.setCapacidadesPrioritarias(txtCapacidades.getText());
+                List<MicrocicloMesocicloConfig> configuracionMicrociclos = new ArrayList<>();
+
+                for (TipoMicrociclo tipoMicrociclo : ciclajeTemporal) {
+                    configuracionMicrociclos.add(
+                            new MicrocicloMesocicloConfig(
+                                    tipoMicrociclo,
+                                    porcentajeCargaPorTipoMicrociclo(tipoMicrociclo),
+                                    5,
+                                    120
+                            )
+                    );
+                }
+
+                nuevo.setConfiguracionMicrociclos(configuracionMicrociclos);
+
+                if (chkGenerarMicrociclos.isSelected()) {
+                    aplicarCiclajeMesociclo(nuevo);
+                }
+
+                return nuevo;
+            }
+
+            return null;
+        });
+
+        Optional<MesocicloPlanificado> resultado = dialog.showAndWait();
+
+        resultado.ifPresent(nuevo -> {
+            mesociclosPlanificados.add(nuevo);
+            mesociclosPlanificados.sort(Comparator.comparingInt(MesocicloPlanificado::getSemanaInicio));
+            mesociclosInicializados = true;
+            actualizarFechasMesociclos();
+            construirPlanGrafico();
+        });
+    }
+
+    private double porcentajeCargaPorTipoMicrociclo(TipoMicrociclo tipo) {
+        return switch (tipo) {
+            case AJUSTE -> 60;
+            case CARGA -> 70;
+            case IMPACTO -> 75;
+            case RECUPERACION -> 50;
+            case PRECOMPETITIVO -> 60;
+            case COMPETENCIA -> 40;
+        };
+    }
+
+    private void construirControlesCiclaje(HBox contenedor,
+                                           List<TipoMicrociclo> ciclajeActual,
+                                           int duracion) {
+        contenedor.getChildren().clear();
+
+        while (ciclajeActual.size() < duracion) {
+            ciclajeActual.add(TipoMicrociclo.CARGA);
+        }
+
+        while (ciclajeActual.size() > duracion) {
+            ciclajeActual.remove(ciclajeActual.size() - 1);
+        }
+
+        for (int i = 0; i < duracion; i++) {
+            VBox box = new VBox(4);
+            box.setAlignment(Pos.CENTER);
+
+            Label lblSemana = new Label("Sem. " + (i + 1));
+            lblSemana.setStyle("-fx-font-size: 11px; -fx-font-weight: bold;");
+
+            ComboBox<TipoMicrociclo> cbMicro = new ComboBox<>();
+            cbMicro.getItems().setAll(TipoMicrociclo.values());
+            cbMicro.setValue(ciclajeActual.get(i));
+            cbMicro.setPrefWidth(120);
+
+            int index = i;
+            cbMicro.valueProperty().addListener((obs, oldVal, newVal) -> {
+                if (newVal != null) {
+                    ciclajeActual.set(index, newVal);
+                }
+            });
+
+            box.getChildren().addAll(lblSemana, cbMicro);
+            contenedor.getChildren().add(box);
+        }
+    }
+
+    /*private List<TipoMicrociclo> obtenerCiclajeDesdeControles(HBox contenedor) {
+        List<TipoMicrociclo> ciclaje = new ArrayList<>();
+
+        for (javafx.scene.Node node : contenedor.getChildren()) {
+            if (node instanceof VBox vbox) {
+                for (javafx.scene.Node hijo : vbox.getChildren()) {
+                    if (hijo instanceof ComboBox<?> combo) {
+                        Object valor = combo.getValue();
+
+                        if (valor instanceof TipoMicrociclo tipoMicrociclo) {
+                            ciclaje.add(tipoMicrociclo);
+                        }
+                    }
+                }
+            }
+        }
+
+        return ciclaje;
+    }*/
+
+    private void aplicarCiclajeMesociclo(MesocicloPlanificado mesociclo) {
+        int semanaInicioMesociclo = mesociclo.getSemanaInicio();
+        int semanaFinMesociclo = mesociclo.getSemanaFin();
+
+        microciclosPlanificados.removeIf(microciclo ->
+                microciclo.getSemanaInicio() <= semanaFinMesociclo
+                        && microciclo.getSemanaFin() >= semanaInicioMesociclo
+        );
+
+        int semanaActual = semanaInicioMesociclo;
+
+        for (MicrocicloMesocicloConfig config : mesociclo.getConfiguracionMicrociclos()) {
+            if (semanaActual > semanaFinMesociclo) {
+                break;
+            }
+
+            TipoMicrociclo tipoMicrociclo = config.getTipoMicrociclo();
+
+            MicrocicloGraficoPlanificado nuevoMicrociclo = crearMicrocicloGrafico(
+                    tipoMicrociclo,
+                    abreviaturaMicrociclo(tipoMicrociclo),
+                    semanaActual,
+                    1,
+                    colorMicrociclo(tipoMicrociclo)
+            );
+
+            microciclosPlanificados.add(nuevoMicrociclo);
+
+            semanaActual++;
+        }
+
+        microciclosPlanificados.sort(
+                Comparator.comparingInt(MicrocicloGraficoPlanificado::getSemanaInicio)
+        );
+
+        microciclosInicializados = true;
+
+        actualizarFechasMicrociclos();
+
+        limpiarSeleccionCelda();
+    }
+
+
+    private boolean existeCruceMesociclo(MesocicloPlanificado mesocicloIgnorado,
+                                         int nuevaSemanaInicio,
+                                         int nuevaSemanaFin) {
+        for (MesocicloPlanificado mesociclo : mesociclosPlanificados) {
+            if (mesociclo == mesocicloIgnorado) {
+                continue;
+            }
+
+            boolean cruza = nuevaSemanaInicio <= mesociclo.getSemanaFin()
+                    && nuevaSemanaFin >= mesociclo.getSemanaInicio();
+
+            if (cruza) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void reemplazarMesociclo(MesocicloPlanificado original,
+                                     MesocicloPlanificado nuevo) {
+        int index = mesociclosPlanificados.indexOf(original);
+
+        if (index >= 0) {
+            mesociclosPlanificados.set(index, nuevo);
+        }
+
+        mesociclosPlanificados.sort(Comparator.comparingInt(MesocicloPlanificado::getSemanaInicio));
+    }
+
+    private void eliminarMesociclo(MesocicloPlanificado mesociclo) {
+        Alert confirmacionMicrociclos = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmacionMicrociclos.setTitle("Eliminar microciclos hijos");
+        confirmacionMicrociclos.setHeaderText("¿También deseas eliminar los microciclos dentro de este mesociclo?");
+        confirmacionMicrociclos.setContentText("Si eliges aceptar, se eliminarán los microciclos hijos del rango del mesociclo.");
+
+        Optional<ButtonType> respuesta = confirmacionMicrociclos.showAndWait();
+
+        if (respuesta.isPresent() && respuesta.get() == ButtonType.OK) {
+            microciclosPlanificados.removeIf(m ->
+                    m.getSemanaInicio() >= mesociclo.getSemanaInicio()
+                            && m.getSemanaFin() <= mesociclo.getSemanaFin()
             );
         }
+
+        mesociclosPlanificados.remove(mesociclo);
+        mesociclosInicializados = true;
+        actualizarFechasMicrociclos();
+        limpiarSeleccionCelda();
+        construirPlanGrafico();
     }
 
     private void filaEtapasCalculadas(int row) {
         grid.add(celdaTitulo("ETAPA"), 0, row);
 
-        if (etapasPlanificadas == null || etapasPlanificadas.isEmpty()) {
+        if (etapasPlanificadas == null) {
+            etapasPlanificadas = new ArrayList<>();
+        }
+
+        if (etapasPlanificadas.isEmpty()) {
             etapasPlanificadas = etapasService.generarEtapas(
                     tipoPeriodizacionActual,
                     periodosPlanificados,
@@ -2417,22 +4146,401 @@ public class PlanGraficoView extends Application {
             );
         }
 
-        for (EtapaPlanificada etapa : etapasPlanificadas) {
-            grid.add(
-                    celdaEditable(
-                            "ETAPA",
-                            etapa.getSemanaInicio(),
-                            nombreEtapa(etapa.getTipoEtapa()) + "\n" + etapa.getPorcentajeDentroPeriodo() + "%",
-                            colorEtapa(etapa.getTipoEtapa()),
-                            etapa.getDuracionSemanas() * 82,
-                            38
-                    ),
-                    etapa.getSemanaInicio(),
-                    row,
-                    etapa.getDuracionSemanas(),
-                    1
-            );
+        int semana = 1;
+
+        while (semana <= semanasPlan.size()) {
+            EtapaPlanificada etapa = buscarEtapaPorSemanaInicio(semana);
+
+            if (etapa != null) {
+                Label celda = celdaEditable(
+                        "ETAPA",
+                        etapa.getSemanaInicio(),
+                        nombreEtapa(etapa.getTipoEtapa()) + "\n" + etapa.getPorcentajeDentroPeriodo() + "%",
+                        colorEtapa(etapa.getTipoEtapa()),
+                        etapa.getDuracionSemanas() * 82,
+                        38
+                );
+
+                celda.setStyle(celda.getStyle()
+                        + "-fx-font-weight: bold;"
+                        + "-fx-font-size: 11px;"
+                        + "-fx-cursor: hand;"
+                );
+
+                celda.setOnMouseClicked(event -> {
+                    if (event.getClickCount() == 2) {
+                        abrirEditorEtapa(etapa);
+                    }
+                });
+
+                Tooltip.install(celda, new Tooltip(
+                        "Doble clic para editar o eliminar\n"
+                                + "Tipo: " + etapa.getTipoEtapa()
+                                + "\nSemana inicio: " + etapa.getSemanaInicio()
+                                + "\nSemana fin: " + etapa.getSemanaFin()
+                                + "\nDuración: " + etapa.getDuracionSemanas() + " semanas"
+                                + "\nPorcentaje: " + etapa.getPorcentajeDentroPeriodo() + "%"
+                ));
+
+                grid.add(celda, etapa.getSemanaInicio(), row, etapa.getDuracionSemanas(), 1);
+
+                semana = etapa.getSemanaFin() + 1;
+            } else {
+                int semanaDisponible = semana;
+
+                Label celdaVacia = celdaEtapaDisponible(semanaDisponible);
+                grid.add(celdaVacia, semanaDisponible, row);
+
+                semana++;
+            }
         }
+    }
+
+    private EtapaPlanificada buscarEtapaPorSemanaInicio(int semanaInicio) {
+        for (EtapaPlanificada etapa : etapasPlanificadas) {
+            if (etapa.getSemanaInicio() == semanaInicio) {
+                return etapa;
+            }
+        }
+
+        return null;
+    }
+
+    private Label celdaEtapaDisponible(int semana) {
+        Label celda = new Label("+");
+        celda.setAlignment(Pos.CENTER);
+        celda.setMinSize(82, 38);
+        celda.setPrefSize(82, 38);
+        celda.setMaxSize(82, 38);
+
+        String estiloNormal =
+                "-fx-background-color: #f8fafc;"
+                        + "-fx-border-color: #94a3b8;"
+                        + "-fx-border-style: dashed;"
+                        + "-fx-border-width: 1.2;"
+                        + "-fx-text-fill: #08294a;"
+                        + "-fx-font-size: 14px;"
+                        + "-fx-font-weight: bold;"
+                        + "-fx-cursor: hand;";
+
+        String estiloHover =
+                "-fx-background-color: #dbeafe;"
+                        + "-fx-border-color: #0875c9;"
+                        + "-fx-border-style: dashed;"
+                        + "-fx-border-width: 1.6;"
+                        + "-fx-text-fill: #0875c9;"
+                        + "-fx-font-size: 16px;"
+                        + "-fx-font-weight: bold;"
+                        + "-fx-cursor: hand;";
+
+        celda.setStyle(estiloNormal);
+
+        Tooltip.install(celda, new Tooltip("Doble clic para agregar una etapa en la semana " + semana));
+
+        celda.setOnMouseEntered(e -> celda.setStyle(estiloHover));
+        celda.setOnMouseExited(e -> celda.setStyle(estiloNormal));
+
+        celda.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2) {
+                abrirEditorNuevaEtapa(semana);
+            }
+        });
+
+        return celda;
+    }
+
+    private void abrirEditorEtapa(EtapaPlanificada etapaOriginal) {
+        Dialog<EtapaPlanificada> dialog = new Dialog<>();
+        dialog.setTitle("Editar etapa");
+        dialog.setHeaderText("Modificar o eliminar etapa");
+
+        ButtonType btnGuardar = new ButtonType("Guardar cambios", ButtonBar.ButtonData.OK_DONE);
+        ButtonType btnEliminar = new ButtonType("Eliminar etapa", ButtonBar.ButtonData.LEFT);
+        ButtonType btnCancelar = new ButtonType("Cancelar", ButtonBar.ButtonData.CANCEL_CLOSE);
+
+        dialog.getDialogPane().getButtonTypes().addAll(btnGuardar, btnEliminar, btnCancelar);
+
+        ComboBox<TipoEtapaPlanificacion> cbTipo = new ComboBox<>();
+        cbTipo.getItems().addAll(TipoEtapaPlanificacion.values());
+        cbTipo.setValue(etapaOriginal.getTipoEtapa());
+
+        Spinner<Integer> spSemanaInicio = new Spinner<>(
+                1,
+                semanasPlan.size(),
+                etapaOriginal.getSemanaInicio()
+        );
+        spSemanaInicio.setEditable(true);
+
+        Spinner<Integer> spSemanaFin = new Spinner<>(
+                1,
+                semanasPlan.size(),
+                etapaOriginal.getSemanaFin()
+        );
+        spSemanaFin.setEditable(true);
+
+        Spinner<Double> spPorcentaje = new Spinner<>(
+                0.0,
+                100.0,
+                calcularPorcentajeEtapa(spSemanaInicio.getValue(), spSemanaFin.getValue()),
+                0.1
+        );
+        spPorcentaje.setEditable(false);
+        spPorcentaje.setDisable(true);
+
+        spSemanaInicio.valueProperty().addListener((obs, old, val) -> {
+            spPorcentaje.getValueFactory().setValue(
+                    calcularPorcentajeEtapa(val, spSemanaFin.getValue())
+            );
+        });
+
+        spSemanaFin.valueProperty().addListener((obs, old, val) -> {
+            spPorcentaje.getValueFactory().setValue(
+                    calcularPorcentajeEtapa(spSemanaInicio.getValue(), val)
+            );
+        });
+
+        GridPane form = new GridPane();
+        form.setHgap(12);
+        form.setVgap(12);
+        form.setPadding(new Insets(20));
+
+        form.add(new Label("Tipo de etapa:"), 0, 0);
+        form.add(cbTipo, 1, 0);
+
+        form.add(new Label("Semana inicio:"), 0, 1);
+        form.add(spSemanaInicio, 1, 1);
+
+        form.add(new Label("Semana fin:"), 0, 2);
+        form.add(spSemanaFin, 1, 2);
+
+        form.add(new Label("Porcentaje:"), 0, 3);
+        form.add(spPorcentaje, 1, 3);
+
+        dialog.getDialogPane().setContent(form);
+
+        final boolean[] eliminar = {false};
+
+        Button btnEliminarNode = (Button) dialog.getDialogPane().lookupButton(btnEliminar);
+        btnEliminarNode.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+            event.consume();
+
+            Alert confirmacion = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmacion.setTitle("Eliminar etapa");
+            confirmacion.setHeaderText("¿Deseas eliminar esta etapa?");
+            confirmacion.setContentText("Las semanas ocupadas quedarán disponibles para agregar otra etapa.");
+
+            Optional<ButtonType> respuesta = confirmacion.showAndWait();
+
+            if (respuesta.isPresent() && respuesta.get() == ButtonType.OK) {
+                eliminar[0] = true;
+                dialog.setResult(null);
+                dialog.close();
+            }
+        });
+
+        dialog.setResultConverter(button -> {
+            if (button == btnGuardar) {
+                int semanaInicio = spSemanaInicio.getValue();
+                int semanaFin = spSemanaFin.getValue();
+
+                if (semanaFin < semanaInicio) {
+                    mostrarAlerta("Error", "La semana final no puede ser menor que la semana inicial.");
+                    return null;
+                }
+
+                if (existeCruceEtapa(etapaOriginal, semanaInicio, semanaFin)) {
+                    mostrarAlerta("Cruce de etapas", "El rango seleccionado se cruza con otra etapa.");
+                    return null;
+                }
+
+                return crearEtapaManual(
+                        cbTipo.getValue(),
+                        semanaInicio,
+                        semanaFin,
+                        calcularPorcentajeEtapa(semanaInicio, semanaFin)
+                );
+            }
+
+            return null;
+        });
+
+        Optional<EtapaPlanificada> resultado = dialog.showAndWait();
+
+        if (eliminar[0]) {
+            eliminarEtapa(etapaOriginal);
+            return;
+        }
+
+        resultado.ifPresent(etapaNueva -> {
+            reemplazarEtapa(etapaOriginal, etapaNueva);
+            redibujarPlanGraficoCompleto();
+        });
+    }
+
+    private void abrirEditorNuevaEtapa(int semanaDisponible) {
+        Dialog<EtapaPlanificada> dialog = new Dialog<>();
+        dialog.setTitle("Agregar etapa");
+        dialog.setHeaderText("Agregar nueva etapa desde la semana " + semanaDisponible);
+
+        ButtonType btnGuardar = new ButtonType("Agregar etapa", ButtonBar.ButtonData.OK_DONE);
+        ButtonType btnCancelar = new ButtonType("Cancelar", ButtonBar.ButtonData.CANCEL_CLOSE);
+
+        dialog.getDialogPane().getButtonTypes().addAll(btnGuardar, btnCancelar);
+
+        ComboBox<TipoEtapaPlanificacion> cbTipo = new ComboBox<>();
+        cbTipo.getItems().addAll(TipoEtapaPlanificacion.values());
+        cbTipo.setValue(TipoEtapaPlanificacion.PERSONALIZADA);
+
+        Spinner<Integer> spSemanaInicio = new Spinner<>(
+                1,
+                semanasPlan.size(),
+                semanaDisponible
+        );
+        spSemanaInicio.setEditable(true);
+
+        Spinner<Integer> spSemanaFin = new Spinner<>(
+                1,
+                semanasPlan.size(),
+                semanaDisponible
+        );
+        spSemanaFin.setEditable(true);
+
+        Spinner<Double> spPorcentaje = new Spinner<>(
+                0.0,
+                100.0,
+                calcularPorcentajeEtapa(spSemanaInicio.getValue(), spSemanaFin.getValue()),
+                0.1
+        );
+        spPorcentaje.setEditable(false);
+        spPorcentaje.setDisable(true);
+
+        spSemanaInicio.valueProperty().addListener((obs, old, val) -> {
+            spPorcentaje.getValueFactory().setValue(
+                    calcularPorcentajeEtapa(val, spSemanaFin.getValue())
+            );
+        });
+
+        spSemanaFin.valueProperty().addListener((obs, old, val) -> {
+            spPorcentaje.getValueFactory().setValue(
+                    calcularPorcentajeEtapa(spSemanaInicio.getValue(), val)
+            );
+        });
+
+        GridPane form = new GridPane();
+        form.setHgap(12);
+        form.setVgap(12);
+        form.setPadding(new Insets(20));
+
+        form.add(new Label("Tipo de etapa:"), 0, 0);
+        form.add(cbTipo, 1, 0);
+
+        form.add(new Label("Semana inicio:"), 0, 1);
+        form.add(spSemanaInicio, 1, 1);
+
+        form.add(new Label("Semana fin:"), 0, 2);
+        form.add(spSemanaFin, 1, 2);
+
+        form.add(new Label("Porcentaje:"), 0, 3);
+        form.add(spPorcentaje, 1, 3);
+
+        dialog.getDialogPane().setContent(form);
+
+        dialog.setResultConverter(button -> {
+            if (button == btnGuardar) {
+                int semanaInicio = spSemanaInicio.getValue();
+                int semanaFin = spSemanaFin.getValue();
+
+                if (semanaFin < semanaInicio) {
+                    mostrarAlerta("Error", "La semana final no puede ser menor que la semana inicial.");
+                    return null;
+                }
+
+                if (existeCruceEtapa(null, semanaInicio, semanaFin)) {
+                    mostrarAlerta("Cruce de etapas", "El rango seleccionado se cruza con otra etapa.");
+                    return null;
+                }
+
+                return crearEtapaManual(
+                        cbTipo.getValue(),
+                        semanaInicio,
+                        semanaFin,
+                        calcularPorcentajeEtapa(semanaInicio, semanaFin)
+                );
+            }
+
+            return null;
+        });
+
+        Optional<EtapaPlanificada> resultado = dialog.showAndWait();
+
+        resultado.ifPresent(etapaNueva -> {
+            etapasPlanificadas.add(etapaNueva);
+            etapasPlanificadas.sort(Comparator.comparingInt(EtapaPlanificada::getSemanaInicio));
+            redibujarPlanGraficoCompleto();
+        });
+    }
+
+    private EtapaPlanificada crearEtapaManual(TipoEtapaPlanificacion tipo,
+                                              int semanaInicio,
+                                              int semanaFin,
+                                              double porcentaje) {
+
+        SemanaPlanificacion primera = semanasPlan.get(semanaInicio - 1);
+        SemanaPlanificacion ultima = semanasPlan.get(semanaFin - 1);
+
+        return new EtapaPlanificada(
+                tipo,
+                semanaInicio,
+                semanaFin,
+                primera.getFechaInicio(),
+                ultima.getFechaFin(),
+                porcentaje
+        );
+    }
+
+    private double calcularPorcentajeEtapa(int semanaInicio, int semanaFin) {
+        int duracion = semanaFin - semanaInicio + 1;
+        int totalSemanas = semanasPlan.size();
+
+        if (totalSemanas <= 0) {
+            return 0;
+        }
+
+        double porcentaje = (duracion * 100.0) / totalSemanas;
+
+        return Math.round(porcentaje * 10.0) / 10.0;
+    }
+
+    private boolean existeCruceEtapa(EtapaPlanificada etapaIgnorada, int nuevaSemanaInicio, int nuevaSemanaFin) {
+        for (EtapaPlanificada etapa : etapasPlanificadas) {
+            if (etapa == etapaIgnorada) {
+                continue;
+            }
+
+            boolean cruza = nuevaSemanaInicio <= etapa.getSemanaFin()
+                    && nuevaSemanaFin >= etapa.getSemanaInicio();
+
+            if (cruza) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void reemplazarEtapa(EtapaPlanificada etapaOriginal, EtapaPlanificada etapaNueva) {
+        int index = etapasPlanificadas.indexOf(etapaOriginal);
+
+        if (index >= 0) {
+            etapasPlanificadas.set(index, etapaNueva);
+        }
+
+        etapasPlanificadas.sort(Comparator.comparingInt(EtapaPlanificada::getSemanaInicio));
+    }
+
+    private void eliminarEtapa(EtapaPlanificada etapa) {
+        etapasPlanificadas.remove(etapa);
+        redibujarPlanGraficoCompleto();
     }
 
     private String colorEtapa(TipoEtapaPlanificacion tipo) {

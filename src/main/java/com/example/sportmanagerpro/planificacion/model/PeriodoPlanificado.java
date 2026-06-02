@@ -37,27 +37,62 @@ public class PeriodoPlanificado {
         return tipoPeriodo;
     }
 
+    public void setTipoPeriodo(TipoPeriodoPlanificacion tipoPeriodo) {
+        this.tipoPeriodo = tipoPeriodo;
+    }
+
     public int getSemanaInicio() {
         return semanaInicio;
+    }
+
+    public void setSemanaInicio(int semanaInicio) {
+        this.semanaInicio = semanaInicio;
+        recalcularDuracion();
     }
 
     public int getSemanaFin() {
         return semanaFin;
     }
 
+    public void setSemanaFin(int semanaFin) {
+        this.semanaFin = semanaFin;
+        recalcularDuracion();
+    }
+
     public int getDuracionSemanas() {
         return duracionSemanas;
+    }
+
+    public void setDuracionSemanas(int duracionSemanas) {
+        this.duracionSemanas = duracionSemanas;
+        this.semanaFin = this.semanaInicio + duracionSemanas - 1;
     }
 
     public LocalDate getFechaInicio() {
         return fechaInicio;
     }
 
+    public void setFechaInicio(LocalDate fechaInicio) {
+        this.fechaInicio = fechaInicio;
+    }
+
     public LocalDate getFechaFin() {
         return fechaFin;
     }
 
+    public void setFechaFin(LocalDate fechaFin) {
+        this.fechaFin = fechaFin;
+    }
+
     public double getPorcentaje() {
         return porcentaje;
+    }
+
+    public void setPorcentaje(double porcentaje) {
+        this.porcentaje = porcentaje;
+    }
+
+    private void recalcularDuracion() {
+        this.duracionSemanas = this.semanaFin - this.semanaInicio + 1;
     }
 }

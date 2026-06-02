@@ -12,6 +12,7 @@ module com.example.sportmanagerpro {
     requires com.almasb.fxgl.all;
     requires java.sql;
     requires org.apache.pdfbox;
+    requires com.fasterxml.jackson.databind;
 
 
     opens com.example.sportmanagerpro to javafx.fxml;
@@ -19,9 +20,11 @@ module com.example.sportmanagerpro {
     opens com.example.sportmanagerpro.planificacion.controller to javafx.fxml;
     opens com.example.sportmanagerpro.planificacion.model to javafx.fxml;
     opens com.example.sportmanagerpro.planificacion.configuracion to javafx.fxml;
+    opens com.example.sportmanagerpro.planificacion.persistencia to javafx.fxml;
     exports com.example.sportmanagerpro;
     exports com.example.sportmanagerpro.controllers;
     exports com.example.sportmanagerpro.planificacion.controller;
     exports com.example.sportmanagerpro.planificacion.model;
     exports com.example.sportmanagerpro.planificacion.configuracion;
+    exports com.example.sportmanagerpro.planificacion.persistencia;
 }

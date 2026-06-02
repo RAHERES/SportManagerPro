@@ -180,7 +180,6 @@ public class EtapasPorPeriodizacionService {
 
             etapas.add(new EtapaPlanificada(
                     definiciones[i].tipoEtapa,
-                    periodo.getTipoPeriodo(),
                     semanaInicioActual,
                     semanaFinActual,
                     semanaInicio.getFechaInicio(),

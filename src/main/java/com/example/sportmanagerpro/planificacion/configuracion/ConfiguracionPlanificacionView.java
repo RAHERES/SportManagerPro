@@ -401,7 +401,6 @@ public class ConfiguracionPlanificacionView extends Application {
             gridDias.add(cardDia, col, 0);
             col++;
         }
-
         return tarjeta("6. Semana tipo de entrenamiento", gridDias);
     }
 
