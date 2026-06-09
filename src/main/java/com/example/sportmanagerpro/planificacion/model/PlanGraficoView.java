@@ -35,6 +35,12 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.util.*;
+import com.example.sportmanagerpro.planificacion.enums.TipoPreparacion;
+import com.example.sportmanagerpro.planificacion.model.CualidadPlanificada;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.cell.TextFieldTableCell;
+
 
 public class PlanGraficoView extends Application {
 
@@ -2099,10 +2105,11 @@ public class PlanGraficoView extends Application {
         filaNumerica(row++, "COMPLEJOS I-II", generarValores(totalSemanas, 0));
 
         /*filaBarras(row++, "PREP. TÉCNICO-TÁCTICA", "#1f9d46", new int[]{30, 45, 55, 60, 70, 75, 85, 65, 75, 80, 85, 55, 25});*/
-        filaNumerica(row++, "PREP. TÉCNICO-TÁCTICA", generarValores(totalSemanas, 30, 45, 55, 60, 70, 75, 85));
-        filaBarras(row++, "PREP. PSICOLÓGICA", "#8e44ad", new int[]{10, 20, 30, 35, 50, 55, 60, 45, 55, 60, 50, 25, 15});
-        filaBarras(row++, "PREP. TEÓRICA", "#d49a00", new int[]{15, 25, 40, 45, 55, 65, 70, 55, 70, 75, 45, 25, 10});
+        //filaNumerica(row++, "PREP. TÉCNICO-TÁCTICA", generarValores(totalSemanas, 30, 45, 55, 60, 70, 75, 85));
+        //filaBarras(row++, "PREP. PSICOLÓGICA", "#8e44ad", new int[]{10, 20, 30, 35, 50, 55, 60, 45, 55, 60, 50, 25, 15});
+        //filaBarras(row++, "PREP. TEÓRICA", "#d49a00", new int[]{15, 25, 40, 45, 55, 65, 70, 55, 70, 75, 45, 25, 10});
 
+        pintarFilasCualidadesPlanificadas(row);
         pintarFilasPersonalizadas(row);
     }
 
@@ -3432,13 +3439,21 @@ public class PlanGraficoView extends Application {
         Tab tabMicro = new Tab("2. Microciclos y % carga", new ScrollPane(tablaMicrociclos));
         Tab tabDistribucion = new Tab("3. Distribución", distribucion);
         Tab tabResultados = new Tab("4. Resultado calculado", new ScrollPane(resultados));
+        VBox panelCualidades = new VBox(10);
+        panelCualidades.setPadding(new Insets(15));
+
+        List<CualidadPlanificada> cualidadesTemporales = copiarCualidadesMesociclo(mesocicloOriginal);
+        construirPanelCualidades(panelCualidades, cualidadesTemporales);
+
+        Tab tabCualidades = new Tab("5. Cualidades", new ScrollPane(panelCualidades));
+        tabCualidades.setClosable(false);
 
         tabDatos.setClosable(false);
         tabMicro.setClosable(false);
         tabDistribucion.setClosable(false);
         tabResultados.setClosable(false);
 
-        tabs.getTabs().addAll(tabDatos, tabMicro, tabDistribucion, tabResultados);
+        tabs.getTabs().addAll(tabDatos, tabMicro, tabDistribucion, tabResultados, tabCualidades);
         tabs.setPrefWidth(980);
         tabs.setPrefHeight(560);
 
@@ -3508,7 +3523,7 @@ public class PlanGraficoView extends Application {
                 nuevo.setPorcentajeFuerza(spFuerza.getValue());
                 nuevo.setPorcentajeComplejos(spComplejos.getValue());
                 nuevo.setConfiguracionMicrociclos(configuracionTemporal);
-
+                nuevo.setCualidadesPlanificadas(cualidadesTemporales);
                 return nuevo;
             }
 
@@ -3525,6 +3540,7 @@ public class PlanGraficoView extends Application {
         resultado.ifPresent(nuevo -> {
             reemplazarMesociclo(mesocicloOriginal, nuevo);
             aplicarDistribucionMesocicloEnPlan(nuevo);
+            aplicarCualidadesMesocicloEnPlan(nuevo);
             mesociclosInicializados = true;
             microciclosInicializados = true;
             actualizarFechasMesociclos();
@@ -3532,6 +3548,351 @@ public class PlanGraficoView extends Application {
             limpiarSeleccionCelda();
             construirPlanGrafico();
         });
+    }
+
+    private List<CualidadPlanificada> copiarCualidadesMesociclo(MesocicloPlanificado mesociclo) {
+        List<CualidadPlanificada> copia = new ArrayList<>();
+
+        if (mesociclo.getCualidadesPlanificadas() == null) {
+            return copia;
+        }
+
+        for (CualidadPlanificada original : mesociclo.getCualidadesPlanificadas()) {
+            CualidadPlanificada c = new CualidadPlanificada();
+
+            c.setId(original.getId());
+            c.setTipoPreparacion(original.getTipoPreparacion());
+            c.setNombre(original.getNombre());
+            c.setUnidadMedida(original.getUnidadMedida());
+            c.setIntensidadMinima(original.getIntensidadMinima());
+            c.setIntensidadMaxima(original.getIntensidadMaxima());
+            c.setSesionesMinimas(original.getSesionesMinimas());
+            c.setSesionesMaximas(original.getSesionesMaximas());
+            c.setVolumenSesionMinimo(original.getVolumenSesionMinimo());
+            c.setVolumenSesionMaximo(original.getVolumenSesionMaximo());
+            c.setVolumenMicroMinimo(original.getVolumenMicroMinimo());
+            c.setVolumenMicroMaximo(original.getVolumenMicroMaximo());
+            c.setGenerarFilasPlanGrafico(original.isGenerarFilasPlanGrafico());
+
+            copia.add(c);
+        }
+
+        return copia;
+    }
+
+    private void construirPanelCualidades(VBox contenedor, List<CualidadPlanificada> cualidades) {
+        contenedor.getChildren().clear();
+
+        Label titulo = new Label("Cualidades, contenidos o direcciones del entrenamiento");
+        titulo.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #08294a;");
+
+        TableView<CualidadPlanificada> tabla = new TableView<>();
+        tabla.setPrefHeight(300);
+        tabla.setEditable(true);
+
+        TableColumn<CualidadPlanificada, String> colTipo = new TableColumn<>("Preparación");
+        colTipo.setCellValueFactory(data ->
+                new javafx.beans.property.SimpleStringProperty(data.getValue().getTipoPreparacion().name())
+        );
+
+        TableColumn<CualidadPlanificada, String> colNombre = new TableColumn<>("Cualidad");
+        colNombre.setCellValueFactory(data ->
+                new javafx.beans.property.SimpleStringProperty(data.getValue().getNombre())
+        );
+
+        TableColumn<CualidadPlanificada, String> colUnidad = new TableColumn<>("Unidad");
+        colUnidad.setCellValueFactory(data ->
+                new javafx.beans.property.SimpleStringProperty(data.getValue().getUnidadMedida())
+        );
+
+        TableColumn<CualidadPlanificada, String> colIntensidad = new TableColumn<>("Intensidad");
+        colIntensidad.setCellValueFactory(data ->
+                new javafx.beans.property.SimpleStringProperty(
+                        data.getValue().getIntensidadMinima() + " - " + data.getValue().getIntensidadMaxima()
+                )
+        );
+
+        TableColumn<CualidadPlanificada, String> colSesiones = new TableColumn<>("Sesiones");
+        colSesiones.setCellValueFactory(data ->
+                new javafx.beans.property.SimpleStringProperty(
+                        data.getValue().getSesionesMinimas() + " - " + data.getValue().getSesionesMaximas()
+                )
+        );
+
+        TableColumn<CualidadPlanificada, String> colVolumenMicro = new TableColumn<>("Volumen micro");
+        colVolumenMicro.setCellValueFactory(data ->
+                new javafx.beans.property.SimpleStringProperty(
+                        data.getValue().getVolumenMicroMinimo() + " - " + data.getValue().getVolumenMicroMaximo()
+                                + " " + data.getValue().getUnidadMedida()
+                )
+        );
+
+        tabla.getColumns().addAll(
+                colTipo,
+                colNombre,
+                colUnidad,
+                colIntensidad,
+                colSesiones,
+                colVolumenMicro
+        );
+
+        tabla.getItems().setAll(cualidades);
+
+        Button btnAgregar = botonNormal("Agregar cualidad");
+        Button btnEditar = botonNormal("Editar cualidad");
+        Button btnEliminar = botonNormal("Eliminar cualidad");
+
+        btnAgregar.setOnAction(e -> {
+            CualidadPlanificada nueva = new CualidadPlanificada();
+
+            abrirEditorCualidad(nueva).ifPresent(cualidad -> {
+                cualidades.add(cualidad);
+                construirPanelCualidades(contenedor, cualidades);
+            });
+        });
+
+        btnEditar.setOnAction(e -> {
+            CualidadPlanificada seleccionada = tabla.getSelectionModel().getSelectedItem();
+
+            if (seleccionada == null) {
+                mostrarAlerta("Sin selección", "Selecciona una cualidad para editar.");
+                return;
+            }
+
+            abrirEditorCualidad(seleccionada).ifPresent(cualidad -> {
+                construirPanelCualidades(contenedor, cualidades);
+            });
+        });
+
+        btnEliminar.setOnAction(e -> {
+            CualidadPlanificada seleccionada = tabla.getSelectionModel().getSelectedItem();
+
+            if (seleccionada == null) {
+                mostrarAlerta("Sin selección", "Selecciona una cualidad para eliminar.");
+                return;
+            }
+
+            cualidades.remove(seleccionada);
+            construirPanelCualidades(contenedor, cualidades);
+        });
+
+        HBox acciones = new HBox(10, btnAgregar, btnEditar, btnEliminar);
+
+        Label nota = new Label("Puedes agregar cualquier cualidad. Ejemplos: fuerza rápida, velocidad, resistencia aeróbica, posesión, finalización, presión alta.");
+        nota.setWrapText(true);
+        nota.setStyle("-fx-text-fill: #5c6b7a;");
+
+        contenedor.getChildren().addAll(titulo, tabla, acciones, nota);
+    }
+
+    private Optional<CualidadPlanificada> abrirEditorCualidad(CualidadPlanificada cualidad) {
+        Dialog<CualidadPlanificada> dialog = new Dialog<>();
+        dialog.setTitle("Cualidad planificada");
+        dialog.setHeaderText("Configurar cualidad o contenido del entrenamiento");
+
+        ButtonType btnGuardar = new ButtonType("Guardar", ButtonBar.ButtonData.OK_DONE);
+        ButtonType btnCancelar = new ButtonType("Cancelar", ButtonBar.ButtonData.CANCEL_CLOSE);
+
+        dialog.getDialogPane().getButtonTypes().addAll(btnGuardar, btnCancelar);
+
+        ComboBox<TipoPreparacion> cbTipo = new ComboBox<>();
+        cbTipo.getItems().setAll(TipoPreparacion.values());
+        cbTipo.setValue(cualidad.getTipoPreparacion());
+
+        TextField txtNombre = new TextField(cualidad.getNombre());
+        TextField txtUnidad = new TextField(cualidad.getUnidadMedida());
+
+        Spinner<Double> spIntMin = new Spinner<>(0.0, 1000.0, cualidad.getIntensidadMinima(), 1.0);
+        Spinner<Double> spIntMax = new Spinner<>(0.0, 1000.0, cualidad.getIntensidadMaxima(), 1.0);
+
+        Spinner<Integer> spSesMin = new Spinner<>(0, 14, cualidad.getSesionesMinimas());
+        Spinner<Integer> spSesMax = new Spinner<>(0, 14, cualidad.getSesionesMaximas());
+
+        Spinner<Double> spVolSesionMin = new Spinner<>(0.0, 100000.0, cualidad.getVolumenSesionMinimo(), 1.0);
+        Spinner<Double> spVolSesionMax = new Spinner<>(0.0, 100000.0, cualidad.getVolumenSesionMaximo(), 1.0);
+
+        Spinner<Double> spVolMicroMin = new Spinner<>(0.0, 100000.0, cualidad.getVolumenMicroMinimo(), 1.0);
+        Spinner<Double> spVolMicroMax = new Spinner<>(0.0, 100000.0, cualidad.getVolumenMicroMaximo(), 1.0);
+
+        CheckBox chkGenerar = new CheckBox("Generar filas en el plan gráfico");
+        chkGenerar.setSelected(cualidad.isGenerarFilasPlanGrafico());
+
+        spIntMin.setEditable(true);
+        spIntMax.setEditable(true);
+        spSesMin.setEditable(true);
+        spSesMax.setEditable(true);
+        spVolSesionMin.setEditable(true);
+        spVolSesionMax.setEditable(true);
+        spVolMicroMin.setEditable(true);
+        spVolMicroMax.setEditable(true);
+
+        GridPane form = new GridPane();
+        form.setHgap(12);
+        form.setVgap(12);
+        form.setPadding(new Insets(20));
+
+        form.add(new Label("Tipo preparación:"), 0, 0);
+        form.add(cbTipo, 1, 0);
+
+        form.add(new Label("Nombre:"), 0, 1);
+        form.add(txtNombre, 1, 1);
+
+        form.add(new Label("Unidad de medida:"), 0, 2);
+        form.add(txtUnidad, 1, 2);
+
+        form.add(new Label("Intensidad mínima:"), 0, 3);
+        form.add(spIntMin, 1, 3);
+
+        form.add(new Label("Intensidad máxima:"), 0, 4);
+        form.add(spIntMax, 1, 4);
+
+        form.add(new Label("Sesiones mínimas:"), 0, 5);
+        form.add(spSesMin, 1, 5);
+
+        form.add(new Label("Sesiones máximas:"), 0, 6);
+        form.add(spSesMax, 1, 6);
+
+        form.add(new Label("Volumen sesión mínimo:"), 0, 7);
+        form.add(spVolSesionMin, 1, 7);
+
+        form.add(new Label("Volumen sesión máximo:"), 0, 8);
+        form.add(spVolSesionMax, 1, 8);
+
+        form.add(new Label("Volumen micro mínimo:"), 0, 9);
+        form.add(spVolMicroMin, 1, 9);
+
+        form.add(new Label("Volumen micro máximo:"), 0, 10);
+        form.add(spVolMicroMax, 1, 10);
+
+        form.add(chkGenerar, 1, 11);
+
+        dialog.getDialogPane().setContent(form);
+
+        dialog.setResultConverter(button -> {
+            if (button == btnGuardar) {
+                if (txtNombre.getText() == null || txtNombre.getText().trim().isEmpty()) {
+                    mostrarAlerta("Dato faltante", "Escribe el nombre de la cualidad.");
+                    return null;
+                }
+
+                if (spSesMax.getValue() < spSesMin.getValue()) {
+                    mostrarAlerta("Dato incorrecto", "Las sesiones máximas no pueden ser menores que las mínimas.");
+                    return null;
+                }
+
+                if (spVolMicroMax.getValue() < spVolMicroMin.getValue()) {
+                    mostrarAlerta("Dato incorrecto", "El volumen máximo por microciclo no puede ser menor que el mínimo.");
+                    return null;
+                }
+
+                cualidad.setTipoPreparacion(cbTipo.getValue());
+                cualidad.setNombre(txtNombre.getText().trim());
+                cualidad.setUnidadMedida(txtUnidad.getText().trim());
+
+                cualidad.setIntensidadMinima(spIntMin.getValue());
+                cualidad.setIntensidadMaxima(spIntMax.getValue());
+
+                cualidad.setSesionesMinimas(spSesMin.getValue());
+                cualidad.setSesionesMaximas(spSesMax.getValue());
+
+                cualidad.setVolumenSesionMinimo(spVolSesionMin.getValue());
+                cualidad.setVolumenSesionMaximo(spVolSesionMax.getValue());
+
+                cualidad.setVolumenMicroMinimo(spVolMicroMin.getValue());
+                cualidad.setVolumenMicroMaximo(spVolMicroMax.getValue());
+
+                cualidad.setGenerarFilasPlanGrafico(chkGenerar.isSelected());
+
+                return cualidad;
+            }
+
+            return null;
+        });
+
+        return dialog.showAndWait();
+    }
+
+    private void aplicarCualidadesMesocicloEnPlan(MesocicloPlanificado mesociclo) {
+        if (mesociclo.getCualidadesPlanificadas() == null) {
+            return;
+        }
+
+        for (CualidadPlanificada cualidad : mesociclo.getCualidadesPlanificadas()) {
+            if (!cualidad.isGenerarFilasPlanGrafico()) {
+                continue;
+            }
+
+            for (int semana = mesociclo.getSemanaInicio(); semana <= mesociclo.getSemanaFin(); semana++) {
+                int posicion = semana - mesociclo.getSemanaInicio();
+                int total = Math.max(1, mesociclo.getDuracionSemanas() - 1);
+
+                double factor = total == 0 ? 0 : (double) posicion / total;
+
+                int sesiones = (int) Math.round(
+                        cualidad.getSesionesMinimas()
+                                + ((cualidad.getSesionesMaximas() - cualidad.getSesionesMinimas()) * factor)
+                );
+
+                double volumen = cualidad.getVolumenMicroMinimo()
+                        + ((cualidad.getVolumenMicroMaximo() - cualidad.getVolumenMicroMinimo()) * factor);
+
+                asignarValorCalculado(cualidad.getClaveFilaSesiones(), semana, String.valueOf(sesiones));
+                asignarValorCalculado(cualidad.getClaveFilaVolumen(), semana, String.valueOf(Math.round(volumen)));
+            }
+        }
+    }
+
+    private void pintarFilasCualidadesPlanificadas(int rowInicial) {
+        int row = rowInicial;
+
+        List<CualidadPlanificada> cualidadesMostradas = new ArrayList<>();
+
+        for (MesocicloPlanificado mesociclo : mesociclosPlanificados) {
+            if (mesociclo.getCualidadesPlanificadas() == null) {
+                continue;
+            }
+
+            for (CualidadPlanificada cualidad : mesociclo.getCualidadesPlanificadas()) {
+                if (!cualidad.isGenerarFilasPlanGrafico()) {
+                    continue;
+                }
+
+                boolean yaExiste = cualidadesMostradas.stream()
+                        .anyMatch(c -> c.getClaveFilaVolumen().equals(cualidad.getClaveFilaVolumen()));
+
+                if (!yaExiste) {
+                    cualidadesMostradas.add(cualidad);
+                }
+            }
+        }
+
+        for (CualidadPlanificada cualidad : cualidadesMostradas) {
+            filaCualidad(row++, cualidad.getTituloFilaSesiones(), cualidad.getClaveFilaSesiones());
+            filaCualidad(row++, cualidad.getTituloFilaVolumen(), cualidad.getClaveFilaVolumen());
+        }
+    }
+
+    private void filaCualidad(int row, String titulo, String claveFila) {
+        grid.add(celdaTitulo(titulo), 0, row);
+
+        for (int semana = 1; semana <= semanasPlan.size(); semana++) {
+            CeldaPlanGrafico celdaModelo = celdasPlan.get(claveFila + "-" + semana);
+
+            String valor = celdaModelo == null ? "" : celdaModelo.getValor();
+
+            grid.add(
+                    celdaEditable(
+                            claveFila,
+                            semana,
+                            valor,
+                            "#ffffff",
+                            82,
+                            34
+                    ),
+                    semana,
+                    row
+            );
+        }
     }
 
     private List<MicrocicloMesocicloConfig> copiarConfiguracionMicrociclos(MesocicloPlanificado mesociclo) {

@@ -12,6 +12,8 @@ import java.util.List;
  */
 public class MesocicloPlanificado {
 
+    private List<CualidadPlanificada> cualidadesPlanificadas = new ArrayList<>();
+
     private TipoMesociclo tipoMesociclo;
     private String nombre;
     private int semanaInicio;
@@ -205,5 +207,13 @@ public class MesocicloPlanificado {
     public void setConfiguracionMicrociclos(List<MicrocicloMesocicloConfig> configuracionMicrociclos) {
         this.configuracionMicrociclos = configuracionMicrociclos;
         ajustarConfiguracionMicrociclos();
+    }
+
+    public List<CualidadPlanificada> getCualidadesPlanificadas() {
+        return cualidadesPlanificadas;
+    }
+
+    public void setCualidadesPlanificadas(List<CualidadPlanificada> cualidadesPlanificadas) {
+        this.cualidadesPlanificadas = cualidadesPlanificadas;
     }
 }

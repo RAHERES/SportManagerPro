@@ -1,0 +1,158 @@
+.root {
+    -fx-font-family: "Segoe UI";
+    -fx-background-color: #F4F7FB;
+}
+
+/* TITULOS */
+
+.patient-name,
+.section-title,
+.card-title,
+.summary-title,
+.timeline-title {
+    -fx-text-fill: #0F172A;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+}
+
+.patient-meta,
+.card-subtitle,
+.summary-label,
+.timeline-date,
+.timeline-author {
+    -fx-text-fill: #64748B;
+    -fx-font-size: 12px;
+}
+
+.summary-value,
+.timeline-text,
+.info-value {
+    -fx-text-fill: #0F172A;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+}
+
+/* TARJETAS */
+
+.info-card,
+.summary-card,
+.timeline-card,
+.contact-card {
+    -fx-background-color: white;
+    -fx-border-color: #E2E8F0;
+    -fx-border-width: 1;
+    -fx-border-radius: 14;
+    -fx-background-radius: 14;
+    -fx-padding: 16;
+}
+
+.metric-card {
+    -fx-background-color: #F8FAFC;
+    -fx-border-color: #E2E8F0;
+    -fx-border-width: 1;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-padding: 14;
+}
+
+.metric-label {
+    -fx-text-fill: #64748B;
+    -fx-font-size: 12px;
+}
+
+.metric-value {
+    -fx-text-fill: #0F172A;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+/* BOTONES */
+
+.button {
+    -fx-background-radius: 10;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+
+.primary-button {
+    -fx-background-color: #16A34A;
+    -fx-text-fill: white;
+}
+
+.secondary-button {
+    -fx-background-color: #EFF6FF;
+    -fx-text-fill: #2563EB;
+}
+
+.default-button {
+    -fx-background-color: white;
+    -fx-border-color: #CBD5E1;
+    -fx-border-radius: 10;
+}
+
+/* LISTA PACIENTES */
+
+.list-view {
+    -fx-background-color: transparent;
+    -fx-border-color: #E2E8F0;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+}
+
+.list-cell {
+    -fx-background-color: white;
+}
+
+.list-cell:selected {
+    -fx-background-color: #EFF6FF;
+}
+
+/* CAMPOS */
+
+.text-field,
+.combo-box {
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+    -fx-border-color: #CBD5E1;
+    -fx-pref-height: 40;
+}
+
+.text-field:focused,
+.combo-box:focused {
+    -fx-border-color: #2563EB;
+}
+
+/* BADGES */
+
+.badge-blue {
+    -fx-background-color: #EFF6FF;
+    -fx-text-fill: #2563EB;
+    -fx-background-radius: 10;
+}
+
+.badge-green {
+    -fx-background-color: #ECFDF5;
+    -fx-text-fill: #16A34A;
+    -fx-background-radius: 10;
+}
+
+/* TIMELINE */
+
+.timeline-dot {
+    -fx-fill: #2563EB;
+}
+
+.timeline-item {
+    -fx-padding: 6;
+}
+
+/* SCROLL */
+
+.scroll-pane {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+}
+
+.scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
