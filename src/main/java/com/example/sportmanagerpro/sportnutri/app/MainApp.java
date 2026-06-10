@@ -1,34 +1,26 @@
 package com.example.sportmanagerpro.sportnutri.app;
 
-import com.example.sportmanagerpro.sportnutri.ui.ConsultaExpedientesModernView;
-import com.example.sportmanagerpro.sportnutri.ui.NuevoExpedienteView;
+
+import com.example.sportmanagerpro.sportnutri.ui.AppShell;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
-
-import java.net.URL;
 
 public class MainApp extends Application {
 
     @Override
     public void start(Stage stage) {
-        //NuevoExpedienteView view = new NuevoExpedienteView();
-        ConsultaExpedientesModernView view = new ConsultaExpedientesModernView();
+        AppShell root = new AppShell();
 
-        Scene scene = new Scene(view, 1500, 900);
+        Scene scene = new Scene(root, 1500, 900);
+        scene.getStylesheets().add(
+                com.example.sportmanagerpro.MainApp.class.getResource("dashboard.css").toExternalForm()
+        );
 
-        URL css = getClass().getResource("/styles/nutrisport.css");
-
-        URL resource = com.example.sportmanagerpro.MainApp.class.getResource("verinfo.css");
-        if (resource != null) {
-            scene.getStylesheets().add(resource.toExternalForm());
-        } else {
-            System.out.println("No se encontró /styles/verinfo.css");
-        }
-
-        stage.setTitle("NutriSport Pro - Nuevo expediente");
+        stage.setTitle("SportNutri Manager Pro");
+        stage.setMinWidth(1200);
+        stage.setMinHeight(760);
         stage.setScene(scene);
-        stage.setMaximized(true);
         stage.show();
     }
 

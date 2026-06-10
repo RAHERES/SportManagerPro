@@ -1,4 +1,4 @@
-package com.example.sportmanagerpro.sportnutri.model;
+package com.example.sportmanagerpro.sportnutri1.model;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;

@@ -1,0 +1,102 @@
+.detail-avatar {
+    -fx-min-width: 82px;
+    -fx-min-height: 82px;
+    -fx-alignment: center;
+    -fx-font-size: 42px;
+    -fx-background-color: #EEF2FF;
+    -fx-background-radius: 50%;
+}
+
+.detail-name {
+    -fx-font-size: 26px;
+    -fx-font-weight: 900;
+    -fx-text-fill: #0F172A;
+}
+
+.status-active-pill,
+.status-inactive-pill,
+.badge-blue-pill,
+.badge-orange-pill {
+    -fx-background-radius: 7;
+    -fx-padding: 4 9 4 9;
+    -fx-font-size: 11px;
+    -fx-font-weight: 800;
+}
+
+.status-active-pill {
+    -fx-background-color: #DCFCE7;
+    -fx-text-fill: #15803D;
+}
+
+.status-inactive-pill {
+    -fx-background-color: #FEE2E2;
+    -fx-text-fill: #DC2626;
+}
+
+.badge-blue-pill {
+    -fx-background-color: #DBEAFE;
+    -fx-text-fill: #2563EB;
+}
+
+.badge-orange-pill {
+    -fx-background-color: #FFEDD5;
+    -fx-text-fill: #EA580C;
+}
+
+.note-card {
+    -fx-background-color: #FFF7ED;
+    -fx-background-radius: 10;
+    -fx-border-color: #FED7AA;
+    -fx-border-radius: 10;
+}
+
+.success-soft-button {
+    -fx-background-color: #ECFDF5;
+    -fx-border-color: #BBF7D0;
+    -fx-text-fill: #15803D;
+    -fx-font-weight: 800;
+    -fx-background-radius: 9;
+    -fx-border-radius: 9;
+    -fx-padding: 10;
+}
+
+.blue-soft-button {
+    -fx-background-color: #EFF6FF;
+    -fx-border-color: #BFDBFE;
+    -fx-text-fill: #2563EB;
+    -fx-font-weight: 800;
+    -fx-background-radius: 9;
+    -fx-border-radius: 9;
+    -fx-padding: 10;
+}
+
+.orange-soft-button {
+    -fx-background-color: #FFF7ED;
+    -fx-border-color: #FED7AA;
+    -fx-text-fill: #EA580C;
+    -fx-font-weight: 800;
+    -fx-background-radius: 9;
+    -fx-border-radius: 9;
+    -fx-padding: 10;
+}
+
+.purple-soft-button {
+    -fx-background-color: #F5F3FF;
+    -fx-border-color: #DDD6FE;
+    -fx-text-fill: #6D28D9;
+    -fx-font-weight: 800;
+    -fx-background-radius: 9;
+    -fx-border-radius: 9;
+    -fx-padding: 10;
+}
+
+.table-icon-button {
+    -fx-background-color: #F8FAFC;
+    -fx-border-color: #E2E8F0;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-text-fill: #2563EB;
+    -fx-font-size: 13px;
+    -fx-font-weight: 800;
+    -fx-padding: 7 10 7 10;
+}

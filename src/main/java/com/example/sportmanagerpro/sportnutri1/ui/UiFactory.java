@@ -1,4 +1,4 @@
-package com.example.sportmanagerpro.sportnutri.ui;
+package com.example.sportmanagerpro.sportnutri1.ui;
 
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;

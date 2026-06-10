@@ -1,6 +1,6 @@
-package com.example.sportmanagerpro.sportnutri.service;
+package com.example.sportmanagerpro.sportnutri1.service;
 
-import com.example.sportmanagerpro.sportnutri.model.ExpedientePersona;
+import com.example.sportmanagerpro.sportnutri1.model.ExpedientePersona;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;

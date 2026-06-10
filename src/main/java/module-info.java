@@ -23,7 +23,7 @@ module com.example.sportmanagerpro {
     opens com.example.sportmanagerpro.planificacion.persistencia to javafx.fxml;
     opens com.example.sportmanagerpro.nutricion.ui.components to javafx.fxml;
     opens com.example.sportmanagerpro.pacientes to javafx.fxml;
-    opens com.example.sportmanagerpro.sportnutri.app to javafx.fxml;
+    opens com.example.sportmanagerpro.sportnutri1.app to javafx.fxml;
 
     exports com.example.sportmanagerpro;
     exports com.example.sportmanagerpro.controllers;
@@ -33,5 +33,6 @@ module com.example.sportmanagerpro {
     exports com.example.sportmanagerpro.planificacion.persistencia;
     exports com.example.sportmanagerpro.nutricion.ui to javafx.graphics;
     exports com.example.sportmanagerpro.pacientes to javafx.graphics;
+    exports com.example.sportmanagerpro.sportnutri1.app to javafx.graphics;
     exports com.example.sportmanagerpro.sportnutri.app to javafx.graphics;
 }

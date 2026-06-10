@@ -1,7 +1,7 @@
-package com.example.sportmanagerpro.sportnutri.ui;
+package com.example.sportmanagerpro.sportnutri1.ui;
 
-import com.example.sportmanagerpro.sportnutri.model.Paciente;
-import com.example.sportmanagerpro.sportnutri.repository.PacienteRepository;
+import com.example.sportmanagerpro.sportnutri1.model.Paciente;
+import com.example.sportmanagerpro.sportnutri1.repository.PacienteRepository;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;

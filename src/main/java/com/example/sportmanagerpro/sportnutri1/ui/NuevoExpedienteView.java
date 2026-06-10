@@ -1,7 +1,7 @@
-package com.example.sportmanagerpro.sportnutri.ui;
+package com.example.sportmanagerpro.sportnutri1.ui;
 
-import com.example.sportmanagerpro.sportnutri.model.*;
-import com.example.sportmanagerpro.sportnutri.service.ExpedienteService;
+import com.example.sportmanagerpro.sportnutri1.model.*;
+import com.example.sportmanagerpro.sportnutri1.service.ExpedienteService;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
