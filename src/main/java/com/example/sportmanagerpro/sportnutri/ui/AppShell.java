@@ -1,9 +1,12 @@
 package com.example.sportmanagerpro.sportnutri.ui;
 
 
+import com.example.sportmanagerpro.sportnutri.ui.expedientes.AbrirExpedienteView;
 import com.example.sportmanagerpro.sportnutri.ui.expedientes.ExpedienteDetalleView;
 import com.example.sportmanagerpro.sportnutri.ui.expedientes.ExpedientesView;
+import com.example.sportmanagerpro.sportnutri.ui.personas.AgregarPersonaView;
 import com.example.sportmanagerpro.sportnutri.ui.personas.PersonasView;
+import com.example.sportmanagerpro.sportnutri.ui.util.entrenamiento.EntrenamientoView;
 import javafx.scene.Node;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
@@ -30,8 +33,11 @@ public class AppShell extends BorderPane {
     private Node resolveView(String viewName) {
         return switch (viewName) {
             case "personas" -> new PersonasView();
+            case "agregar-persona" -> new AgregarPersonaView();
+            case "abrir-expediente" -> new AbrirExpedienteView();
             case "expedientes" -> new ExpedientesView(this::navigateTo);
             case "detalle-expediente" -> new ExpedienteDetalleView();
+            case "entrenamiento" -> new EntrenamientoView();
             case "inicio" -> new DashboardView();
             default -> new DashboardView();
         };

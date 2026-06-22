@@ -46,11 +46,12 @@ public class Sidebar extends VBox {
                 item("▰", "Catálogos", "catalogos"),
                 item("⚙", "Configuración", "configuracion"),
                 section("ACCESOS RÁPIDOS"),
-                quickItem("●", "Nueva Persona"),
+                quickItem("●", "Agregar Persona", "agregar-persona"),
                 quickItem("▣", "Nueva Cita Nutricional"),
                 quickItem("♕", "Nueva Evaluación"),
                 quickItem("♛", "Nueva Sesión"),
-                quickItem("▣", "Nuevo Plan Alimentario")
+                quickItem("▣", "Nuevo Plan Alimentario"),
+                quickItem("📁", "Abrir Expediente", "abrir-expediente")
         );
 
         content.getChildren().addAll(logo, menu);
@@ -107,6 +108,13 @@ public class Sidebar extends VBox {
     private Label quickItem(String icon, String text) {
         Label label = new Label(icon + "  " + text);
         label.getStyleClass().add("sidebar-quick-item");
+        return label;
+    }
+
+    private Label quickItem(String icon, String text, String route) {
+        Label label = new Label(icon + "  " + text);
+        label.getStyleClass().add("sidebar-quick-item");
+        label.setOnMouseClicked(e -> router.accept(route));
         return label;
     }
 }
